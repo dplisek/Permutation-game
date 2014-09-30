@@ -37,6 +37,7 @@ typedef struct {
 
 int *gameBoard;
 int gameBoardFieldCount;
+int gameBoardRows;
 int maxDepth;
 
 #pragma mark Output
@@ -50,6 +51,11 @@ StateStack* stateStack;
 
 #pragma mark - Support functions
 
+int fieldCountFromRows(int rows)
+{
+    return rows * (rows + 1) / 2;
+}
+
 int rowsFromFieldCount(int fieldCount)
 {
     return (-1 + sqrt(1 + (8 * fieldCount))) / 2;
@@ -57,10 +63,9 @@ int rowsFromFieldCount(int fieldCount)
 
 void printGameBoard()
 {
-    int rows = rowsFromFieldCount(gameBoardFieldCount);
-    printf("Fields: %u, rows: %u\n", gameBoardFieldCount, rows);
+    printf("Fields: %u, rows: %u\n", gameBoardFieldCount, gameBoardRows);
     int index = 0;
-    for (int row = 0; row < rows; row++) {
+    for (int row = 0; row < gameBoardRows; row++) {
         for (int col = 0; col <= row; col++) {
             printf("%u\t", gameBoard[index]);
             index++;
@@ -105,6 +110,7 @@ BOOL loadGameBoardFromFileName(const char *fileName)
         fscanf(file, "%u", &value);
     }
     fclose(file);
+    gameBoardRows = rowsFromFieldCount(gameBoardFieldCount);
     printGameBoard();
     return YES;
 }
@@ -137,12 +143,41 @@ BOOL isFinal(State *state)
     return YES;
 }
 
-void generateFollowupStates(State* state, State **followupStates, int *followupStateCount)
+State *prepareFollowupState(State *state)
 {
-    // generate
+    State* prepared = (State *)malloc(sizeof(State));
+    prepared->parent = state;
+    prepared->depth = state->depth + 1;
+    return prepared;
 }
 
-void saveResult()
+void pushFollowupStates(State* state)
+{
+    int row = rowsFromFieldCount(state->blankIndex);
+    int rowStart = fieldCountFromRows(row);
+    int rowEnd = fieldCountFromRows(row + 1) - 1;
+    if (state->blankIndex > rowStart) {
+        State* left = prepareFollowupState(state);
+        left->blankIndex = state->blankIndex - 1;
+        pushState(left);
+        State* topLeft = prepareFollowupState(state);
+        topLeft->blankIndex = state->blankIndex - (rowEnd - rowStart + 1);
+        pushState(topLeft);
+    }
+    if (state->blankIndex < rowEnd) {
+        State *right = prepareFollowupState(state);
+        right->blankIndex = state->blankIndex + 1;
+        pushState(right);
+        State *topRight = prepareFollowupState(state);
+        topRight->blankIndex = state->blankIndex - (rowEnd - rowStart);
+        pushState(topRight);
+    }
+    if (row < gameBoardRows - 1) {
+        
+    }
+}
+
+void saveResult(State *state)
 {
     // save result
 }
@@ -179,17 +214,12 @@ int main(int argc, const char * argv[])
         if (isFinal(state)) {
             if (state->depth < minDepth) {
                 minDepth = state->depth;
-                saveResult();
+                saveResult(state);
             }
             continue;
         }
         if (state->depth == maxDepth || state->depth == minDepth - 1) continue;
-        State* followupStates[6];
-        int followupStateCount;
-        generateFollowupStates(state, followupStates, &followupStateCount);
-        for (int i = 0; i < followupStateCount; i++) {
-            pushState(followupStates[i]);
-        }
+        pushFollowupStates(state);
         previousState = state;
     }
     return EXIT_SUCCESS;

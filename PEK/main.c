@@ -18,74 +18,49 @@
 
 typedef char BOOL;
 
-//////////////////////////////////////
-
 #pragma mark - Structs
 
-typedef struct {
-    unsigned row, col;
-} Coords;
-
-typedef struct {
-    Coords blankMovedTo;
-} Step;
-
-typedef struct {
-    Coords blankCoords;
-    unsigned depth;
+typedef struct state {
+    struct state *parent;
+    int blankIndex;
+    int depth;
 } State;
 
 typedef struct {
-    Step *steps;
-    unsigned size;
-} StepStack;
-
-typedef struct {
-    State *states;
-    unsigned size;
+    State **states;
+    int size;
 } StateStack;
-
-//////////////////////////////////////
 
 #pragma mark - Global variables
 
 #pragma mark Input
 
-unsigned *gameBoard;
-unsigned gameBoardRowCount;
-unsigned gameBoardFieldCount;
-unsigned maxDepth;
+int *gameBoard;
+int gameBoardFieldCount;
+int maxDepth;
 
 #pragma mark Output
 
-StepStack *result;
-unsigned minDepth = UINT_MAX;
+StateStack* result;
+int minDepth = INT_MAX;
 
 #pragma mark Runtime
 
-StepStack stepStack;
-StateStack stateStack;
-
-//////////////////////////////////////
+StateStack* stateStack;
 
 #pragma mark - Support functions
 
-unsigned fieldCountFromRows(unsigned rows)
+int rowsFromFieldCount(int fieldCount)
 {
-    return rows * (rows + 1) / 2;
-}
-
-unsigned rowsFromFieldCount(unsigned fieldCount)
-{
-    // solve quadratic function, ignore negative value
     return (-1 + sqrt(1 + (8 * fieldCount))) / 2;
 }
 
 void printGameBoard()
 {
-    printf("Fields: %u, rows: %u\n", gameBoardFieldCount, gameBoardRowCount);
+    int rows = rowsFromFieldCount(gameBoardFieldCount);
+    printf("Fields: %u, rows: %u\n", gameBoardFieldCount, rows);
     int index = 0;
-    for (int row = 0; row < gameBoardRowCount; row++) {
+    for (int row = 0; row < rows; row++) {
         for (int col = 0; col <= row; col++) {
             printf("%u\t", gameBoard[index]);
             index++;
@@ -96,20 +71,13 @@ void printGameBoard()
 
 State *findInitialState()
 {
-    int index = 0;
-    for (unsigned row = 0; row < gameBoardRowCount; row++) {
-        for (unsigned col = 0; col <= row; col++) {
-            unsigned value = gameBoard[index];
-            if (value == 0) {
-                State *state = (State *)malloc(sizeof(State));
-                state->depth = 0;
-                Coords coords;
-                coords.row = row;
-                coords.col = col;
-                state->blankCoords = coords;
-                return state;
-            }
-            index++;
+    for (int i = 0; i < gameBoardFieldCount; i++) {
+        int value = gameBoard[i];
+        if (value == 0) {
+            State *state = (State *)malloc(sizeof(State));
+            state->depth = 0;
+            state->blankIndex = i;
+            return state;
         }
     }
     printf("Missing \"0\" on game board. Please check input.\n");
@@ -123,31 +91,61 @@ BOOL loadGameBoardFromFileName(const char *fileName)
         printf("File with name %s not found.\n", fileName);
         return NO;
     }
-    unsigned gameBoardFieldCountAllocated = GAME_BOARD_INITIAL_ALLOC;
-    gameBoard = (unsigned *)malloc(sizeof(unsigned) * gameBoardFieldCountAllocated);
-    unsigned value;
+    int gameBoardFieldCountAllocated = GAME_BOARD_INITIAL_ALLOC;
+    gameBoard = (int *)malloc(sizeof(int) * gameBoardFieldCountAllocated);
+    int value;
     fscanf(file, "%u", &value);
     while (!feof(file)) {
         gameBoardFieldCount++;
         if (gameBoardFieldCount > gameBoardFieldCountAllocated) {
             gameBoardFieldCountAllocated *= gameBoardFieldCountAllocated;
-            gameBoard = realloc(gameBoard, sizeof(unsigned) * gameBoardFieldCountAllocated);
+            gameBoard = realloc(gameBoard, sizeof(int) * gameBoardFieldCountAllocated);
         }
         gameBoard[gameBoardFieldCount - 1] = value;
         fscanf(file, "%u", &value);
     }
     fclose(file);
-    gameBoardRowCount = rowsFromFieldCount(gameBoardFieldCount);
     printGameBoard();
     return YES;
 }
 
 void pushState(State *state)
 {
-    stateStack.states[stateStack.size];
+    stateStack->states[stateStack->size] = state;
+    stateStack->size++;
 }
 
-//////////////////////////////////////
+State *popState()
+{
+    State *state = stateStack->states[stateStack->size - 1];
+    stateStack->size--;
+    return state;
+}
+
+void swapIndices(int i1, int i2)
+{
+    int temp = gameBoard[i1];
+    gameBoard[i1] = gameBoard[i2];
+    gameBoard[i2] = temp;
+}
+
+BOOL isFinal(State *state)
+{
+    for (int i = 0; i < gameBoardFieldCount; i++) {
+        if (i != gameBoard[i]) return NO;
+    }
+    return YES;
+}
+
+void generateFollowupStates(State* state, State **followupStates, int *followupStateCount)
+{
+    // generate
+}
+
+void saveResult()
+{
+    // save result
+}
 
 #pragma mark - Main
 
@@ -162,5 +160,37 @@ int main(int argc, const char * argv[])
     State *initialState = findInitialState();
     if (!initialState) return EXIT_FAILURE;
     pushState(initialState);
+    State *previousState = NULL;
+    while (stateStack->size) {
+        State *state = popState();
+        if (state->parent) {
+            if (previousState) {
+                while (previousState != state->parent) {
+                    swapIndices(previousState->blankIndex, previousState->parent->blankIndex);
+                    previousState = previousState->parent;
+                    if (!previousState) {
+                        printf("Reached top of state space while searching for common parent.\n");
+                        return EXIT_FAILURE;
+                    }
+                }
+            }
+            swapIndices(state->parent->blankIndex, state->blankIndex);
+        }
+        if (isFinal(state)) {
+            if (state->depth < minDepth) {
+                minDepth = state->depth;
+                saveResult();
+            }
+            continue;
+        }
+        if (state->depth == maxDepth || state->depth == minDepth - 1) continue;
+        State* followupStates[6];
+        int followupStateCount;
+        generateFollowupStates(state, followupStates, &followupStateCount);
+        for (int i = 0; i < followupStateCount; i++) {
+            pushState(followupStates[i]);
+        }
+        previousState = state;
+    }
     return EXIT_SUCCESS;
 }

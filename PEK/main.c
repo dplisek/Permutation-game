@@ -257,6 +257,7 @@ void saveResultIfBetter(State *state)
 {
     if (state->depth < minDepth) {
         minDepth = state->depth;
+        printf("Found a (better) solution, steps: %d\n", minDepth);
         resultSteps = (int *)malloc(sizeof(int) * minDepth);
         for (int i = minDepth - 1; i >= 0; i--) {
             resultSteps[i] = state->blankIndex;

@@ -355,13 +355,17 @@ int main(int argc, const char * argv[])
         }
         previousState = state;
     }
-    if (!writeResultToFile(argv[3], previousState)) {
-        printf("Couldn't write to file %s.\n", argv[3]);
-        return EXIT_FAILURE;
+    if (resultSteps) {
+        if (!writeResultToFile(argv[3], previousState)) {
+            printf("Couldn't write to file %s.\n", argv[3]);
+            return EXIT_FAILURE;
+        }
+        printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
+        free(resultSteps);
+    } else {
+        printf("Could not find any solution with at most %d steps.\n", maxDepth);
     }
-    printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
     freeStateStack();
-    free(resultSteps);
     free(gameBoard);
     return EXIT_SUCCESS;
 }

@@ -188,30 +188,48 @@ void pushFollowupStates(State* state)
     printf("row: %d, start: %d, end: %d\n", row, rowStart, rowEnd);
     if (state->blankIndex > rowStart) {
         printf("Will push left and top left.\n");
-        State* left = prepareFollowupState(state);
-        left->blankIndex = state->blankIndex - 1;
-        pushState(left);
-        State* topLeft = prepareFollowupState(state);
-        topLeft->blankIndex = state->blankIndex - (rowEnd - rowStart + 1);
-        pushState(topLeft);
+        int blankIndex = state->blankIndex - 1;
+        if (!state->parent || blankIndex != state->parent->blankIndex) {
+            State* left = prepareFollowupState(state);
+            left->blankIndex = blankIndex;
+            pushState(left);
+        }
+        blankIndex = state->blankIndex - (rowEnd - rowStart + 1);
+        if (!state->parent || blankIndex != state->parent->blankIndex) {
+            State* topLeft = prepareFollowupState(state);
+            topLeft->blankIndex = blankIndex;
+            pushState(topLeft);
+        }
     }
     if (state->blankIndex < rowEnd) {
         printf("Will push right and top right.\n");
-        State *right = prepareFollowupState(state);
-        right->blankIndex = state->blankIndex + 1;
-        pushState(right);
-        State *topRight = prepareFollowupState(state);
-        topRight->blankIndex = state->blankIndex - (rowEnd - rowStart);
-        pushState(topRight);
+        int blankIndex = state->blankIndex + 1;
+        if (!state->parent || blankIndex != state->parent->blankIndex) {
+            State *right = prepareFollowupState(state);
+            right->blankIndex = blankIndex;
+            pushState(right);
+        }
+        blankIndex = state->blankIndex - (rowEnd - rowStart);
+        if (!state->parent || blankIndex != state->parent->blankIndex) {
+            State *topRight = prepareFollowupState(state);
+            topRight->blankIndex = blankIndex;
+            pushState(topRight);
+        }
     }
     if (row < gameBoardRows - 1) {
         printf("Will push bottom left and bottom right.\n");
-        State *bottomLeft = prepareFollowupState(state);
-        bottomLeft->blankIndex = state->blankIndex + (rowEnd - rowStart + 1);
-        pushState(bottomLeft);
-        State *bottomRight = prepareFollowupState(state);
-        bottomRight->blankIndex = state->blankIndex + (rowEnd - rowStart + 2);
-        pushState(bottomRight);
+        int blankIndex = state->blankIndex + (rowEnd - rowStart + 1);
+        if (!state->parent || blankIndex != state->parent->blankIndex) {
+            State *bottomLeft = prepareFollowupState(state);
+            bottomLeft->blankIndex = blankIndex;
+            pushState(bottomLeft);
+        }
+        blankIndex = state->blankIndex + (rowEnd - rowStart + 2);
+        if (!state->parent || blankIndex != state->parent->blankIndex) {
+            State *bottomRight = prepareFollowupState(state);
+            bottomRight->blankIndex = blankIndex;
+            pushState(bottomRight);
+        }
     }
 }
 

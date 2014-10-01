@@ -66,27 +66,16 @@ int rowsFromFieldCount(int fieldCount)
 
 #pragma mark - Logging
 
-void printGameBoard()
+void printGameBoardToStream(FILE *stream)
 {
-    printf("Fields: %u, rows: %u\n", gameBoardFieldCount, gameBoardRows);
     int index = 0;
     for (int row = 0; row < gameBoardRows; row++) {
         for (int col = 0; col <= row; col++) {
-            printf("%u\t", gameBoard[index]);
+            fprintf(stream, "%u\t", gameBoard[index]);
             index++;
         }
-        printf("\n");
+        fprintf(stream, "\n");
     }
-}
-
-void Log(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    printf(fmt, args);
-    printf("\n---------------------------------------------------------\n");
-    printGameBoard();
-    printf("---------------------------------------------------------\n");
-    va_end(args);
 }
 
 #pragma mark - Startup
@@ -268,22 +257,38 @@ void saveResultIfBetter(State *state)
 {
     if (state->depth < minDepth) {
         minDepth = state->depth;
-        resultSteps = (int *)malloc(sizeof(int) * state->depth);
-        for (int i = state->depth - 1; i >= 0; i--) {
+        resultSteps = (int *)malloc(sizeof(int) * minDepth);
+        for (int i = minDepth - 1; i >= 0; i--) {
             resultSteps[i] = state->blankIndex;
             state = state->parent;
         }
     }
 }
 
-BOOL writeResultToFile(const char *fileName)
+State *resetGameBoardFromLastStateAndReturnInitialState(State *state)
+{
+    while (state->parent) {
+        swapIndices(state->blankIndex, state->parent->blankIndex);
+        state = state->parent;
+    }
+    return state;
+}
+
+BOOL writeResultToFile(const char *fileName, State *lastState)
 {
     FILE *file = fopen(fileName, "w");
     if (file == NULL) {
         printf("Output file with name %s not found.\n", fileName);
         return NO;
     }
-    // TODO: write to file
+    State *initialState = resetGameBoardFromLastStateAndReturnInitialState(lastState);
+    fprintf(file, "Start:\n");
+    printGameBoardToStream(file);
+    for (int i = -1; i < minDepth - 1; i++) {
+        swapIndices(i >= 0 ? resultSteps[i] : initialState->blankIndex, resultSteps[i + 1]);
+        fprintf(file, "Step %d:\n", i + 2);
+        printGameBoardToStream(file);
+    }
     return YES;
 }
 
@@ -304,7 +309,8 @@ int main(int argc, const char * argv[])
     }
     const char *fileName = argv[1];
     if (!loadGameBoardFromFileName(fileName)) return EXIT_FAILURE;
-    Log("Board loaded.");
+    printf("Board loaded. Fields: %u, rows: %u\n", gameBoardFieldCount, gameBoardRows);
+    printGameBoardToStream(stdout);
     maxDepth = atoi(argv[2]);
     printf("Input max depth is %d.\n", maxDepth);
     State *initialState = findInitialState();
@@ -324,7 +330,7 @@ int main(int argc, const char * argv[])
         }
         previousState = state;
     }
-    if (!writeResultToFile(argv[3])) {
+    if (!writeResultToFile(argv[3], previousState)) {
         printf("Couldn't write to file %s.\n", argv[3]);
         return EXIT_FAILURE;
     }

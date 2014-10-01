@@ -282,7 +282,7 @@ void saveResultIfBetter(State *state)
     }
 }
 
-State *resetGameBoardFromLastStateAndReturnInitialState(State *state)
+void resetGameBoardFromLastState(State *state)
 {
     State *stateToFree;
     while (state->parent) {
@@ -291,19 +291,16 @@ State *resetGameBoardFromLastStateAndReturnInitialState(State *state)
         state = state->parent;
         free(stateToFree);
     }
-    return state;
 }
 
-BOOL writeResultToFile(const char *fileName, State *lastState)
+BOOL writeResultToFile(const char *fileName, State *initialState)
 {
     int i;
-    State *initialState;
     FILE *file = fopen(fileName, "w");
     if (file == NULL) {
         printf("Output file with name %s not found.\n", fileName);
         return NO;
     }
-    initialState = resetGameBoardFromLastStateAndReturnInitialState(lastState);
     fprintf(file, "Start:\n");
     printGameBoardToStream(file);
     for (i = -1; i < minDepth - 1; i++) {
@@ -311,7 +308,6 @@ BOOL writeResultToFile(const char *fileName, State *lastState)
         fprintf(file, "Step %d:\n", i + 2);
         printGameBoardToStream(file);
     }
-    free(initialState);
     fclose(file);
     return YES;
 }
@@ -355,8 +351,9 @@ int main(int argc, const char * argv[])
         }
         previousState = state;
     }
+    resetGameBoardFromLastState(previousState);
     if (resultSteps) {
-        if (!writeResultToFile(argv[3], previousState)) {
+        if (!writeResultToFile(argv[3], initialState)) {
             printf("Couldn't write to file %s.\n", argv[3]);
             return EXIT_FAILURE;
         }
@@ -365,6 +362,7 @@ int main(int argc, const char * argv[])
     } else {
         printf("Could not find any solution with at most %d steps.\n", maxDepth);
     }
+    free(initialState);
     freeStateStack();
     free(gameBoard);
     return EXIT_SUCCESS;

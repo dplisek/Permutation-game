@@ -83,11 +83,9 @@ void Log(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     printf(fmt, args);
-    printf("\n\n");
+    printf("\n---------------------------------------------------------\n");
     printGameBoard();
-    printf("\n\n");
-    printf("-------------------------------------------------------------------");
-    printf("\n\n");
+    printf("---------------------------------------------------------\n");
     va_end(args);
 }
 
@@ -325,6 +323,6 @@ int main(int argc, const char * argv[])
             pushFollowupStates(state);
         }
     }
-    printf("Program complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
+    printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
     return EXIT_SUCCESS;
 }

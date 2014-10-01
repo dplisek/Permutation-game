@@ -45,7 +45,7 @@ int maxDepth;
 
 #pragma mark - Output
 
-StateStack* result;
+int* resultSteps;
 int minDepth = INT_MAX;
 
 #pragma mark - Runtime
@@ -264,23 +264,26 @@ BOOL isFinal(State *state)
     return YES;
 }
 
-BOOL saveResult(State *state, const char *fileName)
+void saveResultIfBetter(State *state)
+{
+    if (state->depth < minDepth) {
+        minDepth = state->depth;
+        resultSteps = (int *)malloc(sizeof(int) * state->depth);
+        for (int i = state->depth - 1; i >= 0; i--) {
+            resultSteps[i] = state->blankIndex;
+            state = state->parent;
+        }
+    }
+}
+
+BOOL writeResultToFile(const char *fileName)
 {
     FILE *file = fopen(fileName, "w");
     if (file == NULL) {
         printf("Output file with name %s not found.\n", fileName);
         return NO;
     }
-    
-    return YES;
-}
-
-BOOL saveResultIfBetter(State *state, const char *fileName)
-{
-    if (state->depth < minDepth) {
-        minDepth = state->depth;
-        return saveResult(state, fileName);
-    }
+    // TODO: write to file
     return YES;
 }
 
@@ -314,14 +317,16 @@ int main(int argc, const char * argv[])
             if (!backUpAndFindCommonParent(state, previousState)) return EXIT_FAILURE;
             swapIndices(state->parent->blankIndex, state->blankIndex);
         }
-        previousState = state;
         if (isFinal(state)) {
-            saveResultIfBetter(state, argv[3]);
-            continue;
-        }
-        if (makesSenseToGoDeeper(state)) {
+            saveResultIfBetter(state);
+        } else if (makesSenseToGoDeeper(state)) {
             pushFollowupStates(state);
         }
+        previousState = state;
+    }
+    if (!writeResultToFile(argv[3])) {
+        printf("Couldn't write to file %s.\n", argv[3]);
+        return EXIT_FAILURE;
     }
     printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
     return EXIT_SUCCESS;

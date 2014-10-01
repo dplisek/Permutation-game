@@ -75,7 +75,7 @@ void printGameBoardToStream(FILE *stream)
     int row, col, index = 0;
     for (row = 0; row < gameBoardRows; row++) {
         for (col = 0; col <= row; col++) {
-            fprintf(stream, "%u\t", gameBoard[index]);
+            fprintf(stream, "%d\t", gameBoard[index]);
             index++;
         }
         fprintf(stream, "\n");
@@ -94,7 +94,7 @@ BOOL loadGameBoardFromFileName(const char *fileName)
         return NO;
     }
     gameBoard = (int *)malloc(sizeof(int) * gameBoardFieldCountAllocated);
-    fscanf(file, "%u", &value);
+    fscanf(file, "%d", &value);
     while (!feof(file)) {
         if (gameBoardFieldCount + 1 > gameBoardFieldCountAllocated) {
             int newAlloc = gameBoardFieldCountAllocated * gameBoardFieldCountAllocated;
@@ -103,7 +103,7 @@ BOOL loadGameBoardFromFileName(const char *fileName)
         }
         gameBoard[gameBoardFieldCount] = value;
         gameBoardFieldCount++;
-        fscanf(file, "%u", &value);
+        fscanf(file, "%d", &value);
     }
     fclose(file);
     gameBoardRows = rowsFromFieldCount(gameBoardFieldCount);
@@ -340,7 +340,7 @@ int main(int argc, const char * argv[])
     }
     fileName = argv[1];
     if (!loadGameBoardFromFileName(fileName)) return EXIT_FAILURE;
-    printf("Board loaded. Fields: %u, rows: %u\n", gameBoardFieldCount, gameBoardRows);
+    printf("Board loaded. Fields: %d, rows: %d\n", gameBoardFieldCount, gameBoardRows);
     printGameBoardToStream(stdout);
     maxDepth = atoi(argv[2]);
     printf("Input max depth is %d.\n", maxDepth);

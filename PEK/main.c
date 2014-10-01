@@ -1,10 +1,10 @@
 /*
-  main.c
-  PEK
-
-  Created by Dominik Plisek on 28/09/14.
-  Copyright (c) 2014 Dominik Plisek a Tomas Marek. All rights reserved.
-*/
+ main.c
+ PEK
+ 
+ Created by Dominik Plisek on 28/09/14.
+ Copyright (c) 2014 Dominik Plisek a Tomas Marek. All rights reserved.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +50,7 @@ int minDepth = INT_MAX;
 
 #pragma mark - Runtime
 
-StateStack* stateStack;
+StateStack* stateStack = NULL;
 
 #pragma mark - Debug
 
@@ -120,6 +120,7 @@ State *findInitialState()
             allocatedStates++;
             state->depth = 0;
             state->blankIndex = i;
+            state->parent = NULL;
             return state;
         }
     }
@@ -133,6 +134,8 @@ void pushState(State *state)
 {
     if (!stateStack) {
         stateStack = (StateStack *)malloc(sizeof(StateStack));
+        stateStack->allocated = 0;
+        stateStack->size = 0;
     }
     if (!stateStack->allocated) {
         stateStack->states = (State **)malloc(sizeof(State *) * STACK_INITIAL_ALLOC);
@@ -333,7 +336,7 @@ BOOL makesSenseToGoDeeper(State *state)
 int main(int argc, const char * argv[])
 {
     const char *fileName;
-    State *initialState, *previousState = NULL;
+    State *initialState = NULL, *previousState = NULL;
     if (argc < 4) {
         printf("Usage: programname <gameboard file> <max depth> <output file>\n");
         return EXIT_FAILURE;

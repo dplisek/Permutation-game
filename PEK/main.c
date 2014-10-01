@@ -10,8 +10,10 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <math.h>
+#include <stdarg.h>
 
 #define GAME_BOARD_INITIAL_ALLOC 10
+#define STACK_INITIAL_ALLOC 10
 
 #define YES 1
 #define NO 0
@@ -29,6 +31,7 @@ typedef struct state {
 typedef struct {
     State **states;
     int size;
+    int allocated;
 } StateStack;
 
 #pragma mark - Global variables
@@ -74,6 +77,18 @@ void printGameBoard()
     }
 }
 
+void Log(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    printf(fmt, args);
+    printf("\n\n");
+    printGameBoard();
+    printf("\n\n");
+    printf("-------------------------------------------------------------------");
+    printf("\n\n");
+    va_end(args);
+}
+
 State *findInitialState()
 {
     for (int i = 0; i < gameBoardFieldCount; i++) {
@@ -98,25 +113,38 @@ BOOL loadGameBoardFromFileName(const char *fileName)
     }
     int gameBoardFieldCountAllocated = GAME_BOARD_INITIAL_ALLOC;
     gameBoard = (int *)malloc(sizeof(int) * gameBoardFieldCountAllocated);
+    printf("Initially allocated %d ints for game board fields.\n", gameBoardFieldCountAllocated);
     int value;
     fscanf(file, "%u", &value);
     while (!feof(file)) {
-        gameBoardFieldCount++;
-        if (gameBoardFieldCount > gameBoardFieldCountAllocated) {
-            gameBoardFieldCountAllocated *= gameBoardFieldCountAllocated;
-            gameBoard = realloc(gameBoard, sizeof(int) * gameBoardFieldCountAllocated);
+        if (gameBoardFieldCount + 1 > gameBoardFieldCountAllocated) {
+            int newAlloc = gameBoardFieldCountAllocated * gameBoardFieldCountAllocated;
+            gameBoard = realloc(gameBoard, sizeof(int) * newAlloc);
+            gameBoardFieldCountAllocated = newAlloc;
+            printf("Reallocated %d ints for game board fields.\n", gameBoardFieldCountAllocated);
         }
-        gameBoard[gameBoardFieldCount - 1] = value;
+        gameBoard[gameBoardFieldCount] = value;
+        gameBoardFieldCount++;
         fscanf(file, "%u", &value);
     }
     fclose(file);
     gameBoardRows = rowsFromFieldCount(gameBoardFieldCount);
-    printGameBoard();
     return YES;
 }
 
 void pushState(State *state)
 {
+    if (!stateStack) {
+        stateStack = (StateStack *)malloc(sizeof(StateStack));
+    }
+    if (!stateStack->allocated) {
+        stateStack->states = (State **)malloc(sizeof(State *) * STACK_INITIAL_ALLOC);
+        stateStack->allocated = STACK_INITIAL_ALLOC;
+    } else if (stateStack->size + 1 > stateStack->allocated) {
+        int newAlloc = stateStack->allocated * stateStack->allocated;
+        stateStack->states = (State **)realloc(stateStack->states, sizeof(State *) * newAlloc);
+        stateStack->allocated = newAlloc;
+    }
     stateStack->states[stateStack->size] = state;
     stateStack->size++;
 }
@@ -156,7 +184,10 @@ void pushFollowupStates(State* state)
     int row = rowsFromFieldCount(state->blankIndex);
     int rowStart = fieldCountFromRows(row);
     int rowEnd = fieldCountFromRows(row + 1) - 1;
+    printf("Going to push followup states.\n");
+    printf("row: %d, start: %d, end: %d\n", row, rowStart, rowEnd);
     if (state->blankIndex > rowStart) {
+        printf("Will push left and top left.\n");
         State* left = prepareFollowupState(state);
         left->blankIndex = state->blankIndex - 1;
         pushState(left);
@@ -165,6 +196,7 @@ void pushFollowupStates(State* state)
         pushState(topLeft);
     }
     if (state->blankIndex < rowEnd) {
+        printf("Will push right and top right.\n");
         State *right = prepareFollowupState(state);
         right->blankIndex = state->blankIndex + 1;
         pushState(right);
@@ -173,7 +205,13 @@ void pushFollowupStates(State* state)
         pushState(topRight);
     }
     if (row < gameBoardRows - 1) {
-        
+        printf("Will push bottom left and bottom right.\n");
+        State *bottomLeft = prepareFollowupState(state);
+        bottomLeft->blankIndex = state->blankIndex + (rowEnd - rowStart + 1);
+        pushState(bottomLeft);
+        State *bottomRight = prepareFollowupState(state);
+        bottomRight->blankIndex = state->blankIndex + (rowEnd - rowStart + 2);
+        pushState(bottomRight);
     }
 }
 
@@ -192,6 +230,9 @@ int main(int argc, const char * argv[])
     }
     const char *fileName = argv[1];
     if (!loadGameBoardFromFileName(fileName)) return EXIT_FAILURE;
+    Log("Board loaded.");
+    maxDepth = atoi(argv[2]);
+    printf("Max depth (from input) is %d.\n", maxDepth);
     State *initialState = findInitialState();
     if (!initialState) return EXIT_FAILURE;
     pushState(initialState);
@@ -199,26 +240,32 @@ int main(int argc, const char * argv[])
     while (stateStack->size) {
         State *state = popState();
         if (state->parent) {
-            if (previousState) {
-                while (previousState != state->parent) {
-                    swapIndices(previousState->blankIndex, previousState->parent->blankIndex);
-                    previousState = previousState->parent;
-                    if (!previousState) {
-                        printf("Reached top of state space while searching for common parent.\n");
-                        return EXIT_FAILURE;
-                    }
+            printf("State has parent, is not root.\n");
+            while (previousState != state->parent) {
+                Log("Moved back up a notch.");
+                swapIndices(previousState->blankIndex, previousState->parent->blankIndex);
+                previousState = previousState->parent;
+                if (!previousState) {
+                    printf("Reached top of state space while searching for common parent. That is an error.\n");
+                    return EXIT_FAILURE;
                 }
             }
             swapIndices(state->parent->blankIndex, state->blankIndex);
+            Log("Moved to the correct state.");
         }
         if (isFinal(state)) {
+            printf("This state is final.\n");
             if (state->depth < minDepth) {
+                printf("This state also has a smaller depth (%d) than the current %d, going to save it.\n", state->depth, minDepth);
                 minDepth = state->depth;
                 saveResult(state);
             }
             continue;
         }
-        if (state->depth == maxDepth || state->depth == minDepth - 1) continue;
+        if (state->depth == maxDepth || state->depth == minDepth - 1) {
+            printf("Reached the max depth or the minDepth - 1, no need to go any deeper.\n");
+            continue;
+        }
         pushFollowupStates(state);
         previousState = state;
     }

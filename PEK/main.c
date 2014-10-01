@@ -45,7 +45,7 @@ int maxDepth;
 
 #pragma mark - Output
 
-int* resultSteps;
+int* resultSteps = NULL;
 int minDepth = INT_MAX;
 
 #pragma mark - Runtime
@@ -280,6 +280,7 @@ void saveResultIfBetter(State *state)
     if (state->depth < minDepth) {
         minDepth = state->depth;
         printf("Found a (better) solution, steps: %d\n", minDepth);
+        if (resultSteps) free(resultSteps);
         resultSteps = (int *)malloc(sizeof(int) * minDepth);
         for (i = minDepth - 1; i >= 0; i--) {
             resultSteps[i] = state->blankIndex;

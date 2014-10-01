@@ -1,10 +1,10 @@
-//
-//  main.c
-//  PEK
-//
-//  Created by Dominik Plisek on 28/09/14.
-//  Copyright (c) 2014 Dominik Plisek a Tomas Marek. All rights reserved.
-//
+/*
+  main.c
+  PEK
+
+  Created by Dominik Plisek on 28/09/14.
+  Copyright (c) 2014 Dominik Plisek a Tomas Marek. All rights reserved.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,6 +52,10 @@ int minDepth = INT_MAX;
 
 StateStack* stateStack;
 
+#pragma mark - Debug
+
+int allocatedStates;
+
 #pragma mark - Mapping
 
 int fieldCountFromRows(int rows)
@@ -68,9 +72,9 @@ int rowsFromFieldCount(int fieldCount)
 
 void printGameBoardToStream(FILE *stream)
 {
-    int index = 0;
-    for (int row = 0; row < gameBoardRows; row++) {
-        for (int col = 0; col <= row; col++) {
+    int row, col, index = 0;
+    for (row = 0; row < gameBoardRows; row++) {
+        for (col = 0; col <= row; col++) {
             fprintf(stream, "%u\t", gameBoard[index]);
             index++;
         }
@@ -82,14 +86,14 @@ void printGameBoardToStream(FILE *stream)
 
 BOOL loadGameBoardFromFileName(const char *fileName)
 {
+    int gameBoardFieldCountAllocated = GAME_BOARD_INITIAL_ALLOC;
+    int value;
     FILE *file = fopen(fileName, "r");
     if (file == NULL) {
         printf("Input file with name %s not found.\n", fileName);
         return NO;
     }
-    int gameBoardFieldCountAllocated = GAME_BOARD_INITIAL_ALLOC;
     gameBoard = (int *)malloc(sizeof(int) * gameBoardFieldCountAllocated);
-    int value;
     fscanf(file, "%u", &value);
     while (!feof(file)) {
         if (gameBoardFieldCount + 1 > gameBoardFieldCountAllocated) {
@@ -108,10 +112,12 @@ BOOL loadGameBoardFromFileName(const char *fileName)
 
 State *findInitialState()
 {
-    for (int i = 0; i < gameBoardFieldCount; i++) {
+    int i;
+    for (i = 0; i < gameBoardFieldCount; i++) {
         int value = gameBoard[i];
         if (value == 0) {
             State *state = (State *)malloc(sizeof(State));
+            allocatedStates++;
             state->depth = 0;
             state->blankIndex = i;
             return state;
@@ -147,6 +153,12 @@ State *popState()
     return state;
 }
 
+void freeStateStack()
+{
+    free(stateStack->states);
+    free(stateStack);
+}
+
 #pragma mark - Action
 
 void swapIndices(int i1, int i2)
@@ -158,13 +170,17 @@ void swapIndices(int i1, int i2)
 
 BOOL backUpAndFindCommonParent(State *state, State *previousState)
 {
+    State *stateToFree;
     while (previousState != state->parent) {
         if (!previousState->parent) {
             printf("Reached top of state space while searching for common parent. That is an error.\n");
             return NO;
         }
         swapIndices(previousState->blankIndex, previousState->parent->blankIndex);
+        stateToFree = previousState;
         previousState = previousState->parent;
+        free(stateToFree);
+        allocatedStates--;
     }
     return YES;
 }
@@ -174,6 +190,7 @@ BOOL backUpAndFindCommonParent(State *state, State *previousState)
 State *prepareFollowupState(State *state)
 {
     State* prepared = (State *)malloc(sizeof(State));
+    allocatedStates++;
     prepared->parent = state;
     prepared->depth = state->depth + 1;
     return prepared;
@@ -247,7 +264,8 @@ void pushFollowupStates(State* state)
 
 BOOL isFinal(State *state)
 {
-    for (int i = 0; i < gameBoardFieldCount; i++) {
+    int i = 0;
+    for (i = 0; i < gameBoardFieldCount; i++) {
         if (i != gameBoard[i]) return NO;
     }
     return YES;
@@ -255,11 +273,12 @@ BOOL isFinal(State *state)
 
 void saveResultIfBetter(State *state)
 {
+    int i;
     if (state->depth < minDepth) {
         minDepth = state->depth;
         printf("Found a (better) solution, steps: %d\n", minDepth);
         resultSteps = (int *)malloc(sizeof(int) * minDepth);
-        for (int i = minDepth - 1; i >= 0; i--) {
+        for (i = minDepth - 1; i >= 0; i--) {
             resultSteps[i] = state->blankIndex;
             state = state->parent;
         }
@@ -268,28 +287,37 @@ void saveResultIfBetter(State *state)
 
 State *resetGameBoardFromLastStateAndReturnInitialState(State *state)
 {
+    State *stateToFree;
     while (state->parent) {
         swapIndices(state->blankIndex, state->parent->blankIndex);
+        stateToFree = state;
         state = state->parent;
+        free(stateToFree);
+        allocatedStates--;
     }
     return state;
 }
 
 BOOL writeResultToFile(const char *fileName, State *lastState)
 {
+    int i;
+    State *initialState;
     FILE *file = fopen(fileName, "w");
     if (file == NULL) {
         printf("Output file with name %s not found.\n", fileName);
         return NO;
     }
-    State *initialState = resetGameBoardFromLastStateAndReturnInitialState(lastState);
+    initialState = resetGameBoardFromLastStateAndReturnInitialState(lastState);
     fprintf(file, "Start:\n");
     printGameBoardToStream(file);
-    for (int i = -1; i < minDepth - 1; i++) {
+    for (i = -1; i < minDepth - 1; i++) {
         swapIndices(i >= 0 ? resultSteps[i] : initialState->blankIndex, resultSteps[i + 1]);
         fprintf(file, "Step %d:\n", i + 2);
         printGameBoardToStream(file);
     }
+    free(initialState);
+    allocatedStates--;
+    fclose(file);
     return YES;
 }
 
@@ -304,20 +332,21 @@ BOOL makesSenseToGoDeeper(State *state)
 
 int main(int argc, const char * argv[])
 {
+    const char *fileName;
+    State *initialState, *previousState = NULL;
     if (argc < 4) {
         printf("Usage: programname <gameboard file> <max depth> <output file>\n");
         return EXIT_FAILURE;
     }
-    const char *fileName = argv[1];
+    fileName = argv[1];
     if (!loadGameBoardFromFileName(fileName)) return EXIT_FAILURE;
     printf("Board loaded. Fields: %u, rows: %u\n", gameBoardFieldCount, gameBoardRows);
     printGameBoardToStream(stdout);
     maxDepth = atoi(argv[2]);
     printf("Input max depth is %d.\n", maxDepth);
-    State *initialState = findInitialState();
+    initialState = findInitialState();
     if (!initialState) return EXIT_FAILURE;
     pushState(initialState);
-    State *previousState = NULL;
     while (stateStack->size) {
         State *state = popState();
         if (state->parent) {
@@ -336,7 +365,9 @@ int main(int argc, const char * argv[])
         return EXIT_FAILURE;
     }
     printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
+    freeStateStack();
     free(resultSteps);
     free(gameBoard);
+    printf("At the end, there are %d allocated states.\n", allocatedStates);
     return EXIT_SUCCESS;
 }

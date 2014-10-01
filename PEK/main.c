@@ -98,7 +98,7 @@ BOOL loadGameBoardFromFileName(const char *fileName)
     while (!feof(file)) {
         if (gameBoardFieldCount + 1 > gameBoardFieldCountAllocated) {
             int newAlloc = gameBoardFieldCountAllocated * gameBoardFieldCountAllocated;
-            gameBoard = realloc(gameBoard, sizeof(int) * newAlloc);
+            gameBoard = (int *)realloc(gameBoard, sizeof(int) * newAlloc);
             gameBoardFieldCountAllocated = newAlloc;
         }
         gameBoard[gameBoardFieldCount] = value;

@@ -52,10 +52,6 @@ int minDepth = INT_MAX;
 
 StateStack* stateStack = NULL;
 
-#pragma mark - Debug
-
-int allocatedStates;
-
 #pragma mark - Mapping
 
 int fieldCountFromRows(int rows)
@@ -117,7 +113,6 @@ State *findInitialState()
         int value = gameBoard[i];
         if (value == 0) {
             State *state = (State *)malloc(sizeof(State));
-            allocatedStates++;
             state->depth = 0;
             state->blankIndex = i;
             state->parent = NULL;
@@ -183,7 +178,6 @@ BOOL backUpAndFindCommonParent(State *state, State *previousState)
         stateToFree = previousState;
         previousState = previousState->parent;
         free(stateToFree);
-        allocatedStates--;
     }
     return YES;
 }
@@ -193,7 +187,6 @@ BOOL backUpAndFindCommonParent(State *state, State *previousState)
 State *prepareFollowupState(State *state)
 {
     State* prepared = (State *)malloc(sizeof(State));
-    allocatedStates++;
     prepared->parent = state;
     prepared->depth = state->depth + 1;
     return prepared;
@@ -297,7 +290,6 @@ State *resetGameBoardFromLastStateAndReturnInitialState(State *state)
         stateToFree = state;
         state = state->parent;
         free(stateToFree);
-        allocatedStates--;
     }
     return state;
 }
@@ -320,7 +312,6 @@ BOOL writeResultToFile(const char *fileName, State *lastState)
         printGameBoardToStream(file);
     }
     free(initialState);
-    allocatedStates--;
     fclose(file);
     return YES;
 }
@@ -372,6 +363,5 @@ int main(int argc, const char * argv[])
     freeStateStack();
     free(resultSteps);
     free(gameBoard);
-    printf("At the end, there are %d allocated states.\n", allocatedStates);
     return EXIT_SUCCESS;
 }

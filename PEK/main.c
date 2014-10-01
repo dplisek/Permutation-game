@@ -290,6 +290,7 @@ BOOL writeResultToFile(const char *fileName, State *lastState)
         fprintf(file, "Step %d:\n", i + 2);
         printGameBoardToStream(file);
     }
+    free(resultSteps);
     return YES;
 }
 
@@ -336,5 +337,6 @@ int main(int argc, const char * argv[])
         return EXIT_FAILURE;
     }
     printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
+    free(gameBoard);
     return EXIT_SUCCESS;
 }

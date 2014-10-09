@@ -12,7 +12,11 @@
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
+#ifdef STAR
+#include "mpi.h"
+#else
 #include "/usr/local/include/mpi.h"
+#endif
 
 #define GAME_BOARD_INITIAL_ALLOC 10
 #define STACK_INITIAL_ALLOC 10

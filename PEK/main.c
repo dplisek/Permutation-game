@@ -346,11 +346,7 @@ BOOL evaluateNextStackState()
 
 void sendStateToProcess(State *state, int process)
 {
-    if (process == processNum) {
-        pushState(state);
-    } else {
-        // send
-    }
+    // send
 }
 
 #pragma mark - Startup

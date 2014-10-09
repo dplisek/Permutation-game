@@ -12,6 +12,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
+#include "/usr/local/include/mpi.h"
 
 #define GAME_BOARD_INITIAL_ALLOC 10
 #define STACK_INITIAL_ALLOC 10
@@ -20,7 +21,7 @@
 
 #ifdef DEBUG
 #define INIT_LOG() initLog();
-#define LOG(text, ...) logToFile(text, __VA_ARGS__);
+#define LOG(args...) logToFile(args);
 #else
 #define INIT_LOG()
 #define LOG(text, ...)
@@ -63,6 +64,8 @@ int minDepth = INT_MAX;
 
 char logFileName[256];
 int processNum;
+int donorProcessNum;
+int totalProcesses;
 StateStack* stateStack = NULL;
 State *initialState, *previousState = NULL;
 
@@ -143,6 +146,17 @@ void pushState(State *state)
 State *popState()
 {
     State *state = stateStack->states[stateStack->size - 1];
+    stateStack->size--;
+    return state;
+}
+
+State *popStateOffBottom()
+{
+    int i;
+    State *state = stateStack->states[0];
+    for (i = 0; i < stateStack->size - 1; i++) {
+        stateStack->states[i] = stateStack->states[i + 1];
+    }
     stateStack->size--;
     return state;
 }
@@ -326,7 +340,23 @@ BOOL evaluateNextStackState()
     return YES;
 }
 
+void sendStateToProcess(State *state, int process)
+{
+    if (process == processNum) {
+        pushState(state);
+    } else {
+        // send
+    }
+}
+
 #pragma mark - Startup
+
+void initProcessNums()
+{
+    MPI_Comm_rank(MPI_COMM_WORLD, &processNum);
+    MPI_Comm_size(MPI_COMM_WORLD, &totalProcesses);
+    donorProcessNum = (processNum + 1) % totalProcesses;
+}
 
 BOOL loadGameBoardFromFileName(const char *fileName)
 {
@@ -371,8 +401,9 @@ State *findInitialState()
     return NULL;
 }
 
-BOOL prepareOperation(int argc, const char * argv[])
+BOOL prepareOperation(int argc, char * argv[])
 {
+    int i, toDistribute;
     const char *fileName;
     if (argc < 4) {
         fprintf(stderr, "Usage: programname <gameboard file> <max depth> <output file>\n");
@@ -380,40 +411,58 @@ BOOL prepareOperation(int argc, const char * argv[])
     }
     fileName = argv[1];
     if (!loadGameBoardFromFileName(fileName)) return NO;
-    LOG("Board loaded. Fields: %d, rows: %d\n", gameBoardFieldCount, gameBoardRows);
+    printf("Board loaded. Fields: %d, rows: %d\n", gameBoardFieldCount, gameBoardRows);
     printGameBoardToStream(stdout);
     maxDepth = atoi(argv[2]);
-    LOG("Input max depth is %d.\n", maxDepth);
+    printf("Input max depth is %d.\n", maxDepth);
     initialState = findInitialState();
     if (!initialState) return NO;
     pushState(initialState);
+    evaluateNextStackState();
+    if (totalProcesses > 1) {
+        toDistribute = stateStack->size;
+        LOG("Going to distribute %d initial states.\n", toDistribute);
+        for (i = 0; i < toDistribute; i++) {
+            int dest = (i + 1) % totalProcesses;
+            if (dest != MAIN_PROCESS) {
+                LOG("Distributing state %d to destination process %d.\n", i, dest);
+                sendStateToProcess(popState(), dest);
+            } else {
+                LOG("Keeping state %d.\n", i);
+            }
+        }
+    }
     return YES;
 }
 
 #pragma mark - Main
 
-int main(int argc, const char * argv[])
+int main(int argc, char * argv[])
 {
+    MPI_Init(&argc, &argv);
+    initProcessNums();
     INIT_LOG();
+    LOG("My process: %d, total processes: %d, initial donor process: %d.\n", processNum, totalProcesses, donorProcessNum);
     if (processNum == MAIN_PROCESS) {
         if (!prepareOperation(argc, argv)) return EXIT_FAILURE;
     }
-    while (stateStack->size) {
-        evaluateNextStackState();
-    }
-    resetGameBoardFromLastState(previousState);
-    if (resultSteps) {
-        if (!writeResultToFile(argv[3], initialState)) {
-            printf("Couldn't write to file %s.\n", argv[3]);
-            return EXIT_FAILURE;
-        }
-        printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
-        free(resultSteps);
-    } else {
-        printf("Could not find any solution with at most %d steps.\n", maxDepth);
-    }
-    free(initialState);
-    freeStateStack();
-    free(gameBoard);
+//    while (stateStack->size) {
+//        evaluateNextStackState();
+//    }
+//    resetGameBoardFromLastState(previousState);
+//    if (resultSteps) {
+//        if (!writeResultToFile(argv[3], initialState)) {
+//            printf("Couldn't write to file %s.\n", argv[3]);
+//            return EXIT_FAILURE;
+//        }
+//        printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
+//        free(resultSteps);
+//    } else {
+//        printf("Could not find any solution with at most %d steps.\n", maxDepth);
+//    }
+    if (initialState) free(initialState);
+    if (stateStack) freeStateStack();
+    if (gameBoard) free(gameBoard);
+    MPI_Finalize();
     return EXIT_SUCCESS;
 }

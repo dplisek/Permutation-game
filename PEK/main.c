@@ -16,6 +16,7 @@
 #define GAME_BOARD_INITIAL_ALLOC 10
 #define STACK_INITIAL_ALLOC 10
 #define LOG_FILENAME_FORMAT "logp#%d"
+#define MAIN_PROCESS 0
 
 #ifdef DEBUG
 #define INIT_LOG() initLog();
@@ -63,7 +64,7 @@ int minDepth = INT_MAX;
 char logFileName[256];
 int processNum;
 StateStack* stateStack = NULL;
-State *initialState;
+State *initialState, *previousState = NULL;
 
 #pragma mark - Mapping
 
@@ -111,67 +112,11 @@ void printGameBoardToStream(FILE *stream)
     }
 }
 
-#pragma mark - Startup
+#pragma mark - Support functions
 
-BOOL loadGameBoardFromFileName(const char *fileName)
+BOOL makesSenseToGoDeeper(State *state)
 {
-    int gameBoardFieldCountAllocated = GAME_BOARD_INITIAL_ALLOC;
-    int value;
-    FILE *file = fopen(fileName, "r");
-    if (file == NULL) {
-        printf("Input file with name %s not found.\n", fileName);
-        return NO;
-    }
-    gameBoard = (int *)malloc(sizeof(int) * gameBoardFieldCountAllocated);
-    fscanf(file, "%d", &value);
-    while (!feof(file)) {
-        if (gameBoardFieldCount + 1 > gameBoardFieldCountAllocated) {
-            int newAlloc = gameBoardFieldCountAllocated * gameBoardFieldCountAllocated;
-            gameBoard = (int *)realloc(gameBoard, sizeof(int) * newAlloc);
-            gameBoardFieldCountAllocated = newAlloc;
-        }
-        gameBoard[gameBoardFieldCount] = value;
-        gameBoardFieldCount++;
-        fscanf(file, "%d", &value);
-    }
-    fclose(file);
-    gameBoardRows = rowsFromFieldCount(gameBoardFieldCount);
-    return YES;
-}
-
-State *findInitialState()
-{
-    int i;
-    for (i = 0; i < gameBoardFieldCount; i++) {
-        int value = gameBoard[i];
-        if (value == 0) {
-            State *state = (State *)malloc(sizeof(State));
-            state->depth = 0;
-            state->blankIndex = i;
-            state->parent = NULL;
-            return state;
-        }
-    }
-    printf("Missing \"0\" on game board. Please check input.\n");
-    return NULL;
-}
-
-BOOL prepareOperation(int argc, const char * argv[])
-{
-    const char *fileName;
-    if (argc < 4) {
-        fprintf(stderr, "Usage: programname <gameboard file> <max depth> <output file>\n");
-        return NO;
-    }
-    fileName = argv[1];
-    if (!loadGameBoardFromFileName(fileName)) return NO;;
-    LOG("Board loaded. Fields: %d, rows: %d\n", gameBoardFieldCount, gameBoardRows);
-    printGameBoardToStream(stdout);
-    maxDepth = atoi(argv[2]);
-    LOG("Input max depth is %d.\n", maxDepth);
-    initialState = findInitialState();
-    if (!initialState) return NO;
-    return YES;
+    return state->depth < maxDepth && state->depth < minDepth - 1;
 }
 
 #pragma mark - State stack
@@ -206,31 +151,6 @@ void freeStateStack()
 {
     free(stateStack->states);
     free(stateStack);
-}
-
-#pragma mark - Action
-
-void swapIndices(int i1, int i2)
-{
-    int temp = gameBoard[i1];
-    gameBoard[i1] = gameBoard[i2];
-    gameBoard[i2] = temp;
-}
-
-BOOL backUpAndFindCommonParent(State *state, State *previousState)
-{
-    State *stateToFree;
-    while (previousState != state->parent) {
-        if (!previousState->parent) {
-            printf("Reached top of state space while searching for common parent. That is an error.\n");
-            return NO;
-        }
-        swapIndices(previousState->blankIndex, previousState->parent->blankIndex);
-        stateToFree = previousState;
-        previousState = previousState->parent;
-        free(stateToFree);
-    }
-    return YES;
 }
 
 #pragma mark - Followup
@@ -309,6 +229,8 @@ void pushFollowupStates(State* state)
 
 #pragma mark - Results
 
+void swapIndices(int i1, int i2);
+
 BOOL isFinal(State *state)
 {
     int i = 0;
@@ -363,33 +285,121 @@ BOOL writeResultToFile(const char *fileName, State *initialState)
     return YES;
 }
 
-#pragma mark - Support functions
+#pragma mark - Action
 
-BOOL makesSenseToGoDeeper(State *state)
+void swapIndices(int i1, int i2)
 {
-    return state->depth < maxDepth && state->depth < minDepth - 1;
+    int temp = gameBoard[i1];
+    gameBoard[i1] = gameBoard[i2];
+    gameBoard[i2] = temp;
+}
+
+BOOL backUpAndFindCommonParent(State *state, State *previousState)
+{
+    State *stateToFree;
+    while (previousState != state->parent) {
+        if (!previousState->parent) {
+            printf("Reached top of state space while searching for common parent. That is an error.\n");
+            return NO;
+        }
+        swapIndices(previousState->blankIndex, previousState->parent->blankIndex);
+        stateToFree = previousState;
+        previousState = previousState->parent;
+        free(stateToFree);
+    }
+    return YES;
+}
+
+BOOL evaluateNextStackState()
+{
+    State *state = popState();
+    if (state->parent) {
+        if (!backUpAndFindCommonParent(state, previousState)) return NO;
+        swapIndices(state->parent->blankIndex, state->blankIndex);
+    }
+    if (isFinal(state)) {
+        saveResultIfBetter(state);
+    } else if (makesSenseToGoDeeper(state)) {
+        pushFollowupStates(state);
+    }
+    previousState = state;
+    return YES;
+}
+
+#pragma mark - Startup
+
+BOOL loadGameBoardFromFileName(const char *fileName)
+{
+    int gameBoardFieldCountAllocated = GAME_BOARD_INITIAL_ALLOC;
+    int value;
+    FILE *file = fopen(fileName, "r");
+    if (file == NULL) {
+        printf("Input file with name %s not found.\n", fileName);
+        return NO;
+    }
+    gameBoard = (int *)malloc(sizeof(int) * gameBoardFieldCountAllocated);
+    fscanf(file, "%d", &value);
+    while (!feof(file)) {
+        if (gameBoardFieldCount + 1 > gameBoardFieldCountAllocated) {
+            int newAlloc = gameBoardFieldCountAllocated * gameBoardFieldCountAllocated;
+            gameBoard = (int *)realloc(gameBoard, sizeof(int) * newAlloc);
+            gameBoardFieldCountAllocated = newAlloc;
+        }
+        gameBoard[gameBoardFieldCount] = value;
+        gameBoardFieldCount++;
+        fscanf(file, "%d", &value);
+    }
+    fclose(file);
+    gameBoardRows = rowsFromFieldCount(gameBoardFieldCount);
+    return YES;
+}
+
+State *findInitialState()
+{
+    int i;
+    for (i = 0; i < gameBoardFieldCount; i++) {
+        int value = gameBoard[i];
+        if (value == 0) {
+            State *state = (State *)malloc(sizeof(State));
+            state->depth = 0;
+            state->blankIndex = i;
+            state->parent = NULL;
+            return state;
+        }
+    }
+    printf("Missing \"0\" on game board. Please check input.\n");
+    return NULL;
+}
+
+BOOL prepareOperation(int argc, const char * argv[])
+{
+    const char *fileName;
+    if (argc < 4) {
+        fprintf(stderr, "Usage: programname <gameboard file> <max depth> <output file>\n");
+        return NO;
+    }
+    fileName = argv[1];
+    if (!loadGameBoardFromFileName(fileName)) return NO;
+    LOG("Board loaded. Fields: %d, rows: %d\n", gameBoardFieldCount, gameBoardRows);
+    printGameBoardToStream(stdout);
+    maxDepth = atoi(argv[2]);
+    LOG("Input max depth is %d.\n", maxDepth);
+    initialState = findInitialState();
+    if (!initialState) return NO;
+    pushState(initialState);
+    return YES;
 }
 
 #pragma mark - Main
 
 int main(int argc, const char * argv[])
 {
-    State *previousState = NULL;
     INIT_LOG();
-    if (!prepareOperation(argc, argv)) return EXIT_FAILURE;
-    pushState(initialState);
+    if (processNum == MAIN_PROCESS) {
+        if (!prepareOperation(argc, argv)) return EXIT_FAILURE;
+    }
     while (stateStack->size) {
-        State *state = popState();
-        if (state->parent) {
-            if (!backUpAndFindCommonParent(state, previousState)) return EXIT_FAILURE;
-            swapIndices(state->parent->blankIndex, state->blankIndex);
-        }
-        if (isFinal(state)) {
-            saveResultIfBetter(state);
-        } else if (makesSenseToGoDeeper(state)) {
-            pushFollowupStates(state);
-        }
-        previousState = state;
+        evaluateNextStackState();
     }
     resetGameBoardFromLastState(previousState);
     if (resultSteps) {

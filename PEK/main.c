@@ -245,6 +245,13 @@ void pushFollowupStates(State* state)
     }
 }
 
+#pragma mark - Communication
+
+void sendStateToProcess(State *state, int process)
+{
+    // send
+}
+
 #pragma mark - Results
 
 void swapIndices(int i1, int i2);
@@ -342,11 +349,6 @@ BOOL evaluateNextStackState()
     }
     previousState = state;
     return YES;
-}
-
-void sendStateToProcess(State *state, int process)
-{
-    // send
 }
 
 #pragma mark - Startup

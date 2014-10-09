@@ -11,9 +11,19 @@
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
+#include <string.h>
 
 #define GAME_BOARD_INITIAL_ALLOC 10
 #define STACK_INITIAL_ALLOC 10
+#define LOG_FILENAME_FORMAT "logp#%d"
+
+#ifdef DEBUG
+#define INIT_LOG() initLog();
+#define LOG(text, ...) logToFile(text, __VA_ARGS__);
+#else
+#define INIT_LOG()
+#define LOG(text, ...)
+#endif
 
 #define YES 1
 #define NO 0
@@ -50,7 +60,10 @@ int minDepth = INT_MAX;
 
 #pragma mark - Runtime
 
+char logFileName[256];
+int processNum;
 StateStack* stateStack = NULL;
+State *initialState;
 
 #pragma mark - Mapping
 
@@ -65,6 +78,26 @@ int rowsFromFieldCount(int fieldCount)
 }
 
 #pragma mark - Logging
+
+#ifdef DEBUG
+
+void initLog()
+{
+    sprintf(logFileName, LOG_FILENAME_FORMAT, processNum);
+    remove(logFileName);
+}
+
+void logToFile(const char *format, ...)
+{
+    va_list arguments;
+    FILE *logFile = fopen(logFileName, "a");
+    va_start(arguments, format);
+    vfprintf(logFile, format, arguments);
+    va_end(arguments);
+    fclose(logFile);
+}
+
+#endif
 
 void printGameBoardToStream(FILE *stream)
 {
@@ -121,6 +154,24 @@ State *findInitialState()
     }
     printf("Missing \"0\" on game board. Please check input.\n");
     return NULL;
+}
+
+BOOL prepareOperation(int argc, const char * argv[])
+{
+    const char *fileName;
+    if (argc < 4) {
+        fprintf(stderr, "Usage: programname <gameboard file> <max depth> <output file>\n");
+        return NO;
+    }
+    fileName = argv[1];
+    if (!loadGameBoardFromFileName(fileName)) return NO;;
+    LOG("Board loaded. Fields: %d, rows: %d\n", gameBoardFieldCount, gameBoardRows);
+    printGameBoardToStream(stdout);
+    maxDepth = atoi(argv[2]);
+    LOG("Input max depth is %d.\n", maxDepth);
+    initialState = findInitialState();
+    if (!initialState) return NO;
+    return YES;
 }
 
 #pragma mark - State stack
@@ -323,20 +374,9 @@ BOOL makesSenseToGoDeeper(State *state)
 
 int main(int argc, const char * argv[])
 {
-    const char *fileName;
-    State *initialState = NULL, *previousState = NULL;
-    if (argc < 4) {
-        printf("Usage: programname <gameboard file> <max depth> <output file>\n");
-        return EXIT_FAILURE;
-    }
-    fileName = argv[1];
-    if (!loadGameBoardFromFileName(fileName)) return EXIT_FAILURE;
-    printf("Board loaded. Fields: %d, rows: %d\n", gameBoardFieldCount, gameBoardRows);
-    printGameBoardToStream(stdout);
-    maxDepth = atoi(argv[2]);
-    printf("Input max depth is %d.\n", maxDepth);
-    initialState = findInitialState();
-    if (!initialState) return EXIT_FAILURE;
+    State *previousState = NULL;
+    INIT_LOG();
+    if (!prepareOperation(argc, argv)) return EXIT_FAILURE;
     pushState(initialState);
     while (stateStack->size) {
         State *state = popState();

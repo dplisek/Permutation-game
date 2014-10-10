@@ -22,6 +22,9 @@
 #define STACK_INITIAL_ALLOC 10
 #define LOG_FILENAME_FORMAT "logp#%d"
 #define MAIN_PROCESS 0
+#define TRANSFER_BUFFER_LEN 1024
+
+#define TAG_INITIAL_WORK 100
 
 #ifdef DEBUG
 #define INIT_LOG() initLog();
@@ -72,6 +75,7 @@ int donorProcessNum;
 int totalProcesses;
 StateStack* stateStack = NULL;
 State *initialState, *previousState = NULL;
+char transferBuffer[TRANSFER_BUFFER_LEN];
 
 #pragma mark - Mapping
 
@@ -247,9 +251,90 @@ void pushFollowupStates(State* state)
 
 #pragma mark - Communication
 
-void sendStateToProcess(State *state, int process)
+BOOL sendStatesWithCommonParentToProcess(State **states, int stateCount, int process)
 {
-    // send
+    int historyLength, i = 0, position = 0;
+    State *historyItem;
+    if (!stateCount) return NO;
+    historyLength = states[0]->depth;
+    LOG("Packing history length: %d\n", historyLength);
+    MPI_Pack(&(historyLength), 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+    LOG("Packing history.\n");
+    historyItem = states[0]->parent;
+    while (historyItem) {
+        LOG("Packing history item #%d with blankIndex %d.\n", i++, historyItem->blankIndex);
+        MPI_Pack(&(historyItem->blankIndex), 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+        historyItem = historyItem->parent;
+    }
+    LOG("Packing state count: %d\n", stateCount);
+    MPI_Pack(&stateCount, 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+    LOG("Packing states.\n");
+    for (i = 0; i < stateCount; i++) {
+#ifdef DEBUG
+        if (states[i]->depth != historyLength) {
+            fprintf(stderr, "Trying to send states not with a common parent.\n");
+            return NO;
+        }
+#endif
+        LOG("Packing state #%d with blankIndex %d.\n", i, states[i]->blankIndex);
+        MPI_Pack(&(states[i]->blankIndex), 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+    }
+    LOG("Sending package.\n");
+    MPI_Send(transferBuffer, position, MPI_PACKED, process, TAG_INITIAL_WORK, MPI_COMM_WORLD);
+    LOG("Package sent.\n");
+    return YES;
+}
+
+BOOL receiveWork()
+{
+    int i, blankIndex, stateCount, position = 0, historyLength = 0;
+    State *state, *firstState = NULL, *childState = NULL;
+    MPI_Status status;
+#ifdef DEBUG
+    if (stateStack && stateStack->size) {
+        fprintf(stderr, "Asking for work without an empty stack, that should never happen.\n");
+        return NO;
+    }
+#endif
+    MPI_Recv(transferBuffer, TRANSFER_BUFFER_LEN, MPI_PACKED, MPI_ANY_SOURCE, TAG_INITIAL_WORK, MPI_COMM_WORLD, &status);
+    LOG("Received work.\n");
+    MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &historyLength, 1, MPI_INT, MPI_COMM_WORLD);
+    LOG("Unpacked history length: %d\n", historyLength);
+#ifdef DEBUG
+    if (!historyLength) {
+        fprintf(stderr, "Received states without a parent.\n");
+        return NO;
+    }
+#endif
+    for (i = historyLength - 1; i >= 0; i--) {
+        MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &blankIndex, 1, MPI_INT, MPI_COMM_WORLD);
+        LOG("Unpacked history item #%d with blankIndex %d.\n", i, blankIndex);
+        state = (State *)malloc(sizeof(State));
+        state->blankIndex = blankIndex;
+        state->depth = i;
+        state->parent = NULL;
+        if (childState) {
+            childState->parent = state;
+            LOG("State with blankIndex %d set as parent of state with blankIndex %d.\n", state->blankIndex, childState->blankIndex);
+        } else {
+            firstState = state;
+            LOG("State with blankIndex %d set as first state, will become parent of received work states.\n", state->blankIndex);
+        }
+        childState = state;
+    }
+    MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &stateCount, 1, MPI_INT, MPI_COMM_WORLD);
+    LOG("Unpacked state count: %d\n", stateCount);
+    for (i = 0; i < stateCount; i++) {
+        MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &blankIndex, 1, MPI_INT, MPI_COMM_WORLD);
+        LOG("Unpacked work state #%d with blankIndex %d. Will push to stack.\n", i, blankIndex);
+        state = (State *)malloc(sizeof(State));
+        state->blankIndex = blankIndex;
+        state->depth = firstState->depth + 1;
+        state->parent = firstState;
+        pushState(state);
+    }
+    LOG("Finished receiving work, saved %d states to the stack.\n", stateCount);
+    return YES;
 }
 
 #pragma mark - Results
@@ -408,7 +493,7 @@ BOOL prepareOperation(int argc, char * argv[])
     int i, toDistribute;
     const char *fileName;
     if (argc < 4) {
-        fprintf(stderr, "Usage: programname <gameboard file> <max depth> <output file>\n");
+        fprintf(stderr, "Usage: program-name <gameboard file> <max depth> <output file>\n");
         return NO;
     }
     fileName = argv[1];
@@ -427,8 +512,9 @@ BOOL prepareOperation(int argc, char * argv[])
         for (i = 0; i < toDistribute; i++) {
             int dest = (i + 1) % totalProcesses;
             if (dest != MAIN_PROCESS) {
-                LOG("Distributing state %d to destination process %d.\n", i, dest);
-                sendStateToProcess(popState(), dest);
+                State *state = popState();
+                LOG("Distributing state %d with blankIndex %d to destination process %d.\n", i, state->blankIndex, dest);
+                if (!sendStatesWithCommonParentToProcess(&state, 1, dest)) return NO;
             } else {
                 LOG("Keeping state %d.\n", i);
             }
@@ -447,6 +533,8 @@ int main(int argc, char * argv[])
     LOG("My process: %d, total processes: %d, initial donor process: %d.\n", processNum, totalProcesses, donorProcessNum);
     if (processNum == MAIN_PROCESS) {
         if (!prepareOperation(argc, argv)) return EXIT_FAILURE;
+    } else {
+        if (!receiveWork()) return EXIT_FAILURE;
     }
 //    while (stateStack->size) {
 //        evaluateNextStackState();

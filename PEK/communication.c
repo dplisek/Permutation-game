@@ -12,8 +12,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define TAG_WORK_REQUEST 100
+#define TAG_WORK_RESPONSE 101
+
 char transferBuffer[TRANSFER_BUFFER_LEN];
 extern StateStack *stateStack;
+extern int processNum;
+extern int job;
+extern int totalProcesses;
 
 BOOL sendStatesWithCommonParentToProcess(State **states, int stateCount, int process)
 {
@@ -44,12 +50,17 @@ BOOL sendStatesWithCommonParentToProcess(State **states, int stateCount, int pro
         MPI_Pack(&(states[i]->blankIndex), 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
     }
     LOG("Sending package.\n");
-    MPI_Send(transferBuffer, position, MPI_PACKED, process, TAG_INITIAL_WORK, MPI_COMM_WORLD);
+    MPI_Send(transferBuffer, position, MPI_PACKED, process, TAG_WORK_RESPONSE, MPI_COMM_WORLD);
     LOG("Package sent.\n");
     return YES;
 }
 
-BOOL receiveWork()
+void requestWorkFrom(int dest)
+{
+    MPI_Send(&processNum, 1, MPI_INT, dest, TAG_WORK_REQUEST, MPI_COMM_WORLD);
+}
+
+BOOL receiveWorkFromSource(int source)
 {
     int i, blankIndex, stateCount, position = 0, historyLength = 0;
     State *state, *firstState = NULL, *childState = NULL;
@@ -60,7 +71,7 @@ BOOL receiveWork()
         return NO;
     }
 #endif
-    MPI_Recv(transferBuffer, TRANSFER_BUFFER_LEN, MPI_PACKED, MPI_ANY_SOURCE, TAG_INITIAL_WORK, MPI_COMM_WORLD, &status);
+    MPI_Recv(transferBuffer, TRANSFER_BUFFER_LEN, MPI_PACKED, source, TAG_WORK_RESPONSE, MPI_COMM_WORLD, &status);
     LOG("Received work.\n");
     MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &historyLength, 1, MPI_INT, MPI_COMM_WORLD);
     LOG("Unpacked history length: %d\n", historyLength);
@@ -100,3 +111,28 @@ BOOL receiveWork()
     LOG("Finished receiving work, saved %d states to the stack.\n", stateCount);
     return YES;
 }
+
+void evaluateMessageWithTagFromSource(int tag, int source)
+{
+    switch (tag) {
+        case TAG_WORK_REQUEST:
+
+            break;
+        case TAG_WORK_RESPONSE:
+            receiveWorkFromSource(source);
+            job = JOB_EXPANDING;
+            break;
+        default:
+            break;
+    }
+}
+
+void handOutStatesToAllProcesses()
+{
+    int i;
+    for (i = 1; i < totalProcesses; i++) {
+        State *state = popState();
+        sendStatesWithCommonParentToProcess(&state, 1, i);
+    }
+}
+

@@ -17,9 +17,10 @@
 #include "/usr/local/include/mpi.h"
 #endif
 
-#define TAG_INITIAL_WORK 100
-
 BOOL sendStatesWithCommonParentToProcess(State **states, int stateCount, int process);
-BOOL receiveWork();
+BOOL receiveWorkFromSource(int source);
+void requestWorkFrom(int dest);
+void evaluateMessageWithTagFromSource(int tag, int source);
+void handOutStatesToAllProcesses();
 
 #endif /* defined(__PEK__communication__) */

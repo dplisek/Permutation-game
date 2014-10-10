@@ -12,6 +12,7 @@
 #include "bool.h"
 
 void initProcessNums();
-BOOL prepareOperation(int argc, char * argv[]);
+void loadInputData(int argc, char *argv[]);
+void pushInitialState();
 
 #endif /* defined(__PEK__startup__) */

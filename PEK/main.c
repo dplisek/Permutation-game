@@ -16,6 +16,7 @@
 #include "action.h"
 
 // input
+int *initialGameBoard;
 int *gameBoard;
 int gameBoardFieldCount;
 int gameBoardRows;
@@ -112,6 +113,7 @@ int main(int argc, char * argv[])
 //    }
     if (initialState) free(initialState);
     if (stateStack) freeStateStack();
+    if (initialGameBoard) free(initialGameBoard);
     if (gameBoard) free(gameBoard);
     MPI_Finalize();
     return EXIT_SUCCESS;

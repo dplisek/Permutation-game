@@ -7,7 +7,6 @@
 //
 
 #include "action.h"
-#include "statestack.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "output.h"
@@ -18,6 +17,7 @@ extern int *gameBoard;
 extern int maxDepth;
 extern int minDepth;
 extern State *previousState;
+extern int gameBoardFieldCount;
 
 void swapIndices(int i1, int i2)
 {
@@ -66,12 +66,7 @@ void evaluateNextStackState()
     State *state = popState();
     LOG("Evaluating state of depth %d with blankIndex %d, whose parent (if exists) has blankIndex %d.\n", state->depth, state->blankIndex, state->parent ? state->parent->blankIndex : -1);
     if (state->parent) {
-        if (!previousState) {
-            LOG("Although this state is not root, it is the first state being evaluated in this process. As such, the game board has to be forwarded to the parent state.\n");
-            forwardToState(state->parent);
-        } else {
-            backUpAndFindCommonParent(state, previousState);
-        }
+        backUpAndFindCommonParent(state, previousState);
         swapIndices(state->parent->blankIndex, state->blankIndex);
     }
     if (isFinal(state)) {
@@ -82,4 +77,12 @@ void evaluateNextStackState()
         pushFollowupStates(state);
     }
     previousState = state;
+}
+
+void copyGameBoard(int *src, int *target)
+{
+    int i;
+    for (i = 0; i < gameBoardFieldCount; i++) {
+        target[i] = src[i];
+    }
 }

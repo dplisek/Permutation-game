@@ -17,6 +17,7 @@
 #include "output.h"
 
 extern int *gameBoard;
+extern int *initialGameBoard;
 extern int gameBoardFieldCount;
 extern int gameBoardRows;
 extern int processNum, totalProcesses, donorProcessNum;
@@ -66,6 +67,8 @@ void loadInputData(int argc, char *argv[])
     }
     fileName = argv[1];
     loadGameBoardFromFileName(fileName);
+    initialGameBoard = malloc(sizeof(int) * gameBoardFieldCount);
+    copyGameBoard(gameBoard, initialGameBoard);
     printf("Board loaded. Fields: %d, rows: %d\n", gameBoardFieldCount, gameBoardRows);
     printGameBoardToStream(stdout);
     maxDepth = atoi(argv[2]);

@@ -9,6 +9,7 @@
 #include "output.h"
 #include <stdlib.h>
 #include "action.h"
+#include "logging.h"
 
 extern int *gameBoard;
 extern int gameBoardFieldCount;
@@ -42,6 +43,7 @@ void saveResultIfBetter(State *state)
     int i;
     if (state->depth < minDepth) {
         minDepth = state->depth;
+        LOG("Found a (better) solution, steps: %d\n", minDepth);
         printf("Found a (better) solution, steps: %d\n", minDepth);
         if (resultSteps) free(resultSteps);
         resultSteps = (int *)malloc(sizeof(int) * minDepth);

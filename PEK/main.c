@@ -33,6 +33,7 @@ int totalProcesses;
 // runtime
 int expandCycles = 0;
 BOOL done = NO;
+BOOL waitingForWork;
 
 // state stack
 StateStack* stateStack = NULL;
@@ -54,6 +55,9 @@ int main(int argc, char * argv[])
         pushInitialState();
         LOG("Pushed initial state, will begin handing out work.\n");
         initialize();
+        waitingForWork = NO;
+    } else {
+        waitingForWork = YES;
     }
     
     while (!done) {
@@ -61,6 +65,9 @@ int main(int argc, char * argv[])
         if (stateStack->size) {
             evaluateNextStackState();
             expandCycles++;
+        } else if (!waitingForWork) {
+            requestWork();
+            waitingForWork = YES;
         }
         if (!stateStack->size || expandCycles == MSG_CHECK_FREQ) {
             expandCycles = 0;

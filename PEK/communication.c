@@ -20,6 +20,7 @@ extern int processNum;
 extern int job;
 extern int totalProcesses, donorProcessNum;
 extern BOOL done;
+extern BOOL waitingForWork;
 
 extern int *gameBoard;
 extern int gameBoardFieldCount;
@@ -179,6 +180,7 @@ void handleWorkResponseFrom(int source)
         pushState(state);
     }
     LOG("Finished receiving work, saved %d states to the stack.\n", stateCount);
+    waitingForWork = NO;
 }
 
 

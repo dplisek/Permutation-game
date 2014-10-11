@@ -20,5 +20,6 @@
 #define TAG_WORK_NOWORK 102
 #define TAG_TOKEN 103
 #define TAG_FINISH 104
+#define TAG_INITIAL_DATA 105
 
 #endif

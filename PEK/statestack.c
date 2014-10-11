@@ -12,13 +12,15 @@
 
 extern StateStack *stateStack;
 
+void initStateStack()
+{
+    stateStack = (StateStack *)malloc(sizeof(StateStack));
+    stateStack->allocated = 0;
+    stateStack->size = 0;
+}
+
 void pushState(State *state)
 {
-    if (!stateStack) {
-        stateStack = (StateStack *)malloc(sizeof(StateStack));
-        stateStack->allocated = 0;
-        stateStack->size = 0;
-    }
     if (!stateStack->allocated) {
         stateStack->states = (State **)malloc(sizeof(State *) * STACK_INITIAL_ALLOC);
         stateStack->allocated = STACK_INITIAL_ALLOC;

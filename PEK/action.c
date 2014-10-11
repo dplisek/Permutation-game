@@ -42,6 +42,20 @@ void backUpAndFindCommonParent(State *state, State *previousState)
     }
 }
 
+void forwardToState(State *state)
+{
+    int i, arraySize = state->depth + 1;
+    State **states = malloc(sizeof(State *) * arraySize);
+    for (i = arraySize - 1; i >= 0; i--) {
+        states[i] = state;
+        state = state->parent;
+    }
+    for (i = 0; i < arraySize - 1; i++) {
+        swapIndices(states[i]->blankIndex, states[i + 1]->blankIndex);
+    }
+    free(states);
+}
+
 BOOL makesSenseToGoDeeper(State *state)
 {
     return state->depth < maxDepth && state->depth < minDepth - 1;
@@ -52,7 +66,12 @@ void evaluateNextStackState()
     State *state = popState();
     LOG("Evaluating state of depth %d with blankIndex %d, whose parent (if exists) has blankIndex %d.\n", state->depth, state->blankIndex, state->parent ? state->parent->blankIndex : -1);
     if (state->parent) {
-        backUpAndFindCommonParent(state, previousState);
+        if (!previousState) {
+            LOG("Although this state is not root, it is the first state being evaluated in this process. As such, the game board has to be forwarded to the parent state.\n");
+            forwardToState(state->parent);
+        } else {
+            backUpAndFindCommonParent(state, previousState);
+        }
         swapIndices(state->parent->blankIndex, state->blankIndex);
     }
     if (isFinal(state)) {

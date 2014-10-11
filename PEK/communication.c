@@ -21,6 +21,22 @@ extern int job;
 extern int totalProcesses, donorProcessNum;
 extern BOOL done;
 
+extern int *gameBoard;
+extern int gameBoardFieldCount;
+extern int gameBoardRows;
+extern int maxDepth;
+
+
+void sendInitialDataToProcess(int process)
+{
+    int position = 0;
+    MPI_Pack(&gameBoardFieldCount, 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+    MPI_Pack(gameBoard, gameBoardFieldCount, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+    MPI_Pack(&gameBoardRows, 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+    MPI_Pack(&maxDepth, 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+    MPI_Send(transferBuffer, position, MPI_PACKED, process, TAG_INITIAL_DATA, MPI_COMM_WORLD);
+}
+
 void sendStatesWithCommonParentToProcess(State **states, int stateCount, int process)
 {
     int historyLength, i = 0, position = 0;
@@ -61,14 +77,16 @@ void requestWork()
     donorProcessNum = (donorProcessNum + 1) % totalProcesses;
 }
 
-void handOutStatesToAllProcesses()
+void handOutInitialDataToAllProcesses()
 {
     int i, dest;
     for (i = 1; i < totalProcesses; i++) {
         dest = (processNum + i) % totalProcesses;
+        LOG("Sending initial data to process %d.\n", dest);
+        sendInitialDataToProcess(dest);
         State *state = popState();
         LOG("Sending state with depth %d and blankIndex %d and parent blankIndex %d to process %d.\n", state->depth, state->blankIndex, state->parent ? state->parent->blankIndex : -1, dest);
-        sendStatesWithCommonParentToProcess(&state, 1, i);
+        sendStatesWithCommonParentToProcess(&state, 1, dest);
     }
 }
 
@@ -188,4 +206,17 @@ void handleFinishFrom(int source)
     MPI_Recv(NULL, 0, MPI_INT, source, TAG_FINISH, MPI_COMM_WORLD, &status);
     LOG("Received finish message, setting done to YES.\n");
     done = YES;
+}
+
+void handleInitialDataFrom(int source)
+{
+    int position = 0;
+    MPI_Status status;
+    MPI_Recv(transferBuffer, TRANSFER_BUFFER_LEN, MPI_PACKED, source, TAG_INITIAL_DATA, MPI_COMM_WORLD, &status);
+    MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &gameBoardFieldCount, 1, MPI_INT, MPI_COMM_WORLD);
+    gameBoard = malloc(sizeof(int) * gameBoardFieldCount);
+    MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, gameBoard, gameBoardFieldCount, MPI_INT, MPI_COMM_WORLD);
+    MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &gameBoardRows, 1, MPI_INT, MPI_COMM_WORLD);
+    MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &maxDepth, 1, MPI_INT, MPI_COMM_WORLD);
+    LOG("Received initial data, game board rows: %d, max depth: %d.\n", gameBoardRows, maxDepth);
 }

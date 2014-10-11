@@ -101,7 +101,7 @@ void initialize()
         done = YES;
     } else {
         LOG("Have enough states to hand out.\n");
-        handOutStatesToAllProcesses();
+        handOutInitialDataToAllProcesses();
     }
 }
 

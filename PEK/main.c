@@ -47,6 +47,7 @@ int main(int argc, char * argv[])
     initProcessNums();
     INIT_LOG();
     LOG("My process: %d, total processes: %d, initial donor process: %d.\n", processNum, totalProcesses, donorProcessNum);
+    initStateStack();
     if (processNum == 0) {
         LOG("I am the main process, going to load input data.\n");
         loadInputData(argc, argv);
@@ -60,8 +61,6 @@ int main(int argc, char * argv[])
         if (stateStack->size) {
             evaluateNextStackState();
             expandCycles++;
-        } else {
-            requestWork();
         }
         if (!stateStack->size || expandCycles == MSG_CHECK_FREQ) {
             expandCycles = 0;
@@ -84,6 +83,9 @@ int main(int argc, char * argv[])
                         break;
                     case TAG_FINISH:
                         handleFinishFrom(status.MPI_SOURCE);
+                        break;
+                    case TAG_INITIAL_DATA:
+                        handleInitialDataFrom(status.MPI_SOURCE);
                         break;
                 }
             }

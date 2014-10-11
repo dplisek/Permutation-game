@@ -23,6 +23,7 @@ typedef struct {
     int allocated;
 } StateStack;
 
+void initStateStack();
 void pushState(State *state);
 State *popState();
 State **popStatesOffBottom(int count);

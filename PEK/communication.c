@@ -36,7 +36,7 @@ void sendInitialDataToProcess(int process)
 {
     int position = 0;
     MPI_Pack(&gameBoardFieldCount, 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
-    MPI_Pack(gameBoard, gameBoardFieldCount, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+    MPI_Pack(initialGameBoard, gameBoardFieldCount, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
     MPI_Pack(&gameBoardRows, 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
     MPI_Pack(&maxDepth, 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
     MPI_Send(transferBuffer, position, MPI_PACKED, process, TAG_INITIAL_DATA, MPI_COMM_WORLD);

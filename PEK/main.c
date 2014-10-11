@@ -35,6 +35,7 @@ int totalProcesses;
 int expandCycles = 0;
 BOOL done = NO;
 BOOL waitingForWork;
+double execTime;
 
 // state stack
 StateStack* stateStack = NULL;
@@ -46,6 +47,7 @@ int main(int argc, char * argv[])
     MPI_Status status;
     
     MPI_Init(&argc, &argv);
+    execTime = MPI_Wtime();
     initProcessNums();
     INIT_LOG();
     LOG("My process: %d, total processes: %d, initial donor process: %d.\n", processNum, totalProcesses, donorProcessNum);

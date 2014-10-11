@@ -10,9 +10,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "config.h"
+#include "communication.h"
 
 char logFileName[256];
 extern int processNum;
+extern double execTime;
 
 void initLog()
 {
@@ -23,9 +25,11 @@ void initLog()
 void logToFile(const char *format, ...)
 {
     va_list arguments;
+    char logText[1024];
     FILE *logFile = fopen(logFileName, "a");
     va_start(arguments, format);
-    vfprintf(logFile, format, arguments);
+    vsprintf(logText, format, arguments);
+    fprintf(logFile, "[%.4f]: %s", MPI_Wtime() - execTime, logText);
     va_end(arguments);
     fclose(logFile);
 }

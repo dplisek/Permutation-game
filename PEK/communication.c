@@ -80,6 +80,9 @@ void requestWork()
     LOG("Requesting work from process %d.\n", donorProcessNum);
     MPI_Send(NULL, 0, MPI_INT, donorProcessNum, TAG_WORK_REQUEST, MPI_COMM_WORLD);
     donorProcessNum = (donorProcessNum + 1) % totalProcesses;
+    if (donorProcessNum == processNum) {
+        donorProcessNum = (donorProcessNum + 1) % totalProcesses;
+    }
 }
 
 void handOutInitialDataToAllProcesses()
@@ -205,7 +208,6 @@ void handleNoWorkFrom(int source)
     MPI_Recv(NULL, 0, MPI_INT, source, TAG_WORK_NOWORK, MPI_COMM_WORLD, &status);
     LOG("Source %d has no work. Going to ask next in line.\n", source);
     requestWork();
-    donorProcessNum = (donorProcessNum + 1) % totalProcesses;
 }
 
 void handleTokenFrom(int source)

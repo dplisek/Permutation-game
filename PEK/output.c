@@ -16,6 +16,7 @@ extern int gameBoardFieldCount;
 extern int gameBoardRows;
 extern int minDepth;
 extern int *resultSteps;
+extern int processNum;
 
 void printGameBoardToStream(FILE *stream)
 {
@@ -44,7 +45,7 @@ void saveResultIfBetter(State *state)
     if (state->depth < minDepth) {
         minDepth = state->depth;
         LOG("Found a (better) solution, steps: %d\n", minDepth);
-        printf("Found a (better) solution, steps: %d\n", minDepth);
+        printf("Process %d found a (better) solution, steps: %d\n", processNum, minDepth);
         if (resultSteps) free(resultSteps);
         resultSteps = (int *)malloc(sizeof(int) * minDepth);
         for (i = minDepth - 1; i >= 0; i--) {

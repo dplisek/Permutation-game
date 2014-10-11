@@ -17,10 +17,14 @@
 #include "/usr/local/include/mpi.h"
 #endif
 
-BOOL sendStatesWithCommonParentToProcess(State **states, int stateCount, int process);
-BOOL receiveWorkFromSource(int source);
-void requestWorkFrom(int dest);
-void evaluateMessageWithTagFromSource(int tag, int source);
+void sendStatesWithCommonParentToProcess(State **states, int stateCount, int process);
+void requestWork();
 void handOutStatesToAllProcesses();
+void broadcastFinish();
+void handleWorkRequestFrom(int source);
+void handleWorkResponseFrom(int source);
+void handleNoWorkFrom(int source);
+void handleTokenFrom(int source);
+void handleFinishFrom(int source);
 
 #endif /* defined(__PEK__communication__) */

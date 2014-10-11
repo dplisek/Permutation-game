@@ -68,7 +68,7 @@ BOOL writeResultToFile(const char *fileName, State *initialState)
     int i;
     FILE *file = fopen(fileName, "w");
     if (file == NULL) {
-        printf("Output file with name %s not found.\n", fileName);
+        fprintf(stderr, "Output file with name %s not found.\n", fileName);
         return NO;
     }
     fprintf(file, "Start:\n");

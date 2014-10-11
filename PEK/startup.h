@@ -14,5 +14,6 @@
 void initProcessNums();
 void loadInputData(int argc, char *argv[]);
 void pushInitialState();
+void initialize();
 
 #endif /* defined(__PEK__startup__) */

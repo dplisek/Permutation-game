@@ -12,6 +12,6 @@
 #include "bool.h"
 
 void swapIndices(int i1, int i2);
-BOOL evaluateNextStackState();
+void evaluateNextStackState();
 
 #endif /* defined(__PEK__action__) */

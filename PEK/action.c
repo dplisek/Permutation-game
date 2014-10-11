@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "output.h"
 #include "followup.h"
+#include "logging.h"
 
 extern int *gameBoard;
 extern int maxDepth;
@@ -23,22 +24,22 @@ void swapIndices(int i1, int i2)
     int temp = gameBoard[i1];
     gameBoard[i1] = gameBoard[i2];
     gameBoard[i2] = temp;
+    LOG("Swapped indices %d and %d.\n", i1, i2);
 }
 
-BOOL backUpAndFindCommonParent(State *state, State *previousState)
+void backUpAndFindCommonParent(State *state, State *previousState)
 {
     State *stateToFree;
     while (previousState != state->parent) {
         if (!previousState->parent) {
-            printf("Reached top of state space while searching for common parent. That is an error.\n");
-            return NO;
+            fprintf(stderr, "Reached top of state space while searching for common parent. That is an error.\n");
+            exit(EXIT_FAILURE);
         }
         swapIndices(previousState->blankIndex, previousState->parent->blankIndex);
         stateToFree = previousState;
         previousState = previousState->parent;
         free(stateToFree);
     }
-    return YES;
 }
 
 BOOL makesSenseToGoDeeper(State *state)
@@ -46,18 +47,20 @@ BOOL makesSenseToGoDeeper(State *state)
     return state->depth < maxDepth && state->depth < minDepth - 1;
 }
 
-BOOL evaluateNextStackState()
+void evaluateNextStackState()
 {
     State *state = popState();
+    LOG("Evaluating state of depth %d with blankIndex %d, whose parent (if exists) has blankIndex %d.\n", state->depth, state->blankIndex, state->parent ? state->parent->blankIndex : -1);
     if (state->parent) {
-        if (!backUpAndFindCommonParent(state, previousState)) return NO;
+        backUpAndFindCommonParent(state, previousState);
         swapIndices(state->parent->blankIndex, state->blankIndex);
     }
     if (isFinal(state)) {
+        LOG("This state is final.\n");
         saveResultIfBetter(state);
     } else if (makesSenseToGoDeeper(state)) {
+        LOG("Makes sense to go deeper, pushing followup states.\n");
         pushFollowupStates(state);
     }
     previousState = state;
-    return YES;
 }

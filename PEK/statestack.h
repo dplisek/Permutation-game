@@ -25,7 +25,8 @@ typedef struct {
 
 void pushState(State *state);
 State *popState();
-State *popStateOffBottom();
+State **popStatesOffBottom(int count);
+State *stateAtIndex(int index);
 void freeStateStack();
 
 #endif /* defined(__PEK__statestack__) */

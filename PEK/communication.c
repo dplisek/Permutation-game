@@ -12,20 +12,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define TAG_WORK_REQUEST 100
-#define TAG_WORK_RESPONSE 101
+#define MPI_BOOL MPI_CHAR
 
 char transferBuffer[TRANSFER_BUFFER_LEN];
 extern StateStack *stateStack;
 extern int processNum;
 extern int job;
-extern int totalProcesses;
+extern int totalProcesses, donorProcessNum;
+extern BOOL done;
 
-BOOL sendStatesWithCommonParentToProcess(State **states, int stateCount, int process)
+void sendStatesWithCommonParentToProcess(State **states, int stateCount, int process)
 {
     int historyLength, i = 0, position = 0;
     State *historyItem;
-    if (!stateCount) return NO;
+    if (!stateCount) return;
     historyLength = states[0]->depth;
     LOG("Packing history length: %d\n", historyLength);
     MPI_Pack(&(historyLength), 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
@@ -43,7 +43,7 @@ BOOL sendStatesWithCommonParentToProcess(State **states, int stateCount, int pro
 #ifdef DEBUG
         if (states[i]->depth != historyLength) {
             fprintf(stderr, "Trying to send states not with a common parent.\n");
-            return NO;
+            exit(EXIT_FAILURE);
         }
 #endif
         LOG("Packing state #%d with blankIndex %d.\n", i, states[i]->blankIndex);
@@ -52,23 +52,75 @@ BOOL sendStatesWithCommonParentToProcess(State **states, int stateCount, int pro
     LOG("Sending package.\n");
     MPI_Send(transferBuffer, position, MPI_PACKED, process, TAG_WORK_RESPONSE, MPI_COMM_WORLD);
     LOG("Package sent.\n");
-    return YES;
 }
 
-void requestWorkFrom(int dest)
+void requestWork()
 {
-    MPI_Send(&processNum, 1, MPI_INT, dest, TAG_WORK_REQUEST, MPI_COMM_WORLD);
+    LOG("Requesting work from process %d.\n", donorProcessNum);
+    MPI_Send(NULL, 0, MPI_INT, donorProcessNum, TAG_WORK_REQUEST, MPI_COMM_WORLD);
+    donorProcessNum = (donorProcessNum + 1) % totalProcesses;
 }
 
-BOOL receiveWorkFromSource(int source)
+void handOutStatesToAllProcesses()
+{
+    int i, dest;
+    for (i = 1; i < totalProcesses; i++) {
+        dest = (processNum + i) % totalProcesses;
+        State *state = popState();
+        LOG("Sending state with depth %d and blankIndex %d and parent blankIndex %d to process %d.\n", state->depth, state->blankIndex, state->parent ? state->parent->blankIndex : -1, dest);
+        sendStatesWithCommonParentToProcess(&state, 1, i);
+    }
+}
+
+void sendTokenTo(int dest, BOOL black)
+{
+    LOG("Sending a %s token.\n", black ? "black" : "white");
+    MPI_Send(&black, 1, MPI_BOOL, dest, TAG_TOKEN, MPI_COMM_WORLD);
+}
+
+void broadcastFinish()
+{
+    int i, dest;
+    for (i = 1; i < totalProcesses; i++) {
+        dest = (processNum + i) % totalProcesses;
+        LOG("Sending finish to process %d.\n", dest);
+        MPI_Send(NULL, 0, MPI_INT, dest, TAG_FINISH, MPI_COMM_WORLD);
+    }
+}
+
+void handleWorkRequestFrom(int source)
+{
+    int bottomDepth, bottomStateCount = 0;
+    MPI_Status status;
+    LOG("Received work request from process %d.\n", source);
+    MPI_Recv(NULL, 0, MPI_INT, source, TAG_WORK_REQUEST, MPI_COMM_WORLD, &status);
+    if (stateStack->size) {
+        LOG("Have work to give.\n");
+        State *state = stateAtIndex(0);
+        LOG("Deepeset state has blankIndex %d and depth %d and parent blankIndex %d.\n", state->blankIndex, state->depth, state->parent ? state->parent->blankIndex : -1);
+        bottomDepth = state->depth;
+        while (state->depth == bottomDepth) {
+            bottomStateCount++;
+        }
+        LOG("There are a total of %d bottom states. Will give floor(half) of them.\n", bottomStateCount);
+        State **states = popStatesOffBottom(bottomStateCount / 2);
+        sendStatesWithCommonParentToProcess(states, bottomStateCount / 2, source);
+        free(states);
+    } else {
+        LOG("Don't have work, sending nowork.\n");
+        MPI_Send(NULL, 0, MPI_INT, source, TAG_WORK_NOWORK, MPI_COMM_WORLD);
+    }
+}
+
+void handleWorkResponseFrom(int source)
 {
     int i, blankIndex, stateCount, position = 0, historyLength = 0;
     State *state, *firstState = NULL, *childState = NULL;
     MPI_Status status;
 #ifdef DEBUG
     if (stateStack && stateStack->size) {
-        fprintf(stderr, "Asking for work without an empty stack, that should never happen.\n");
-        return NO;
+        fprintf(stderr, "Received work without an empty stack, that should never happen.\n");
+        exit(EXIT_FAILURE);
     }
 #endif
     MPI_Recv(transferBuffer, TRANSFER_BUFFER_LEN, MPI_PACKED, source, TAG_WORK_RESPONSE, MPI_COMM_WORLD, &status);
@@ -78,7 +130,7 @@ BOOL receiveWorkFromSource(int source)
 #ifdef DEBUG
     if (!historyLength) {
         fprintf(stderr, "Received states without a parent.\n");
-        return NO;
+        exit(EXIT_FAILURE);
     }
 #endif
     for (i = historyLength - 1; i >= 0; i--) {
@@ -109,30 +161,31 @@ BOOL receiveWorkFromSource(int source)
         pushState(state);
     }
     LOG("Finished receiving work, saved %d states to the stack.\n", stateCount);
-    return YES;
 }
 
-void evaluateMessageWithTagFromSource(int tag, int source)
+
+void handleNoWorkFrom(int source)
 {
-    switch (tag) {
-        case TAG_WORK_REQUEST:
-
-            break;
-        case TAG_WORK_RESPONSE:
-            receiveWorkFromSource(source);
-            job = JOB_EXPANDING;
-            break;
-        default:
-            break;
-    }
+    MPI_Status status;
+    MPI_Recv(NULL, 0, MPI_INT, source, TAG_WORK_NOWORK, MPI_COMM_WORLD, &status);
+    LOG("Source %d has no work. Going to ask next in line.\n", source);
+    requestWork();
+    donorProcessNum = (donorProcessNum + 1) % totalProcesses;
 }
 
-void handOutStatesToAllProcesses()
+void handleTokenFrom(int source)
 {
-    int i;
-    for (i = 1; i < totalProcesses; i++) {
-        State *state = popState();
-        sendStatesWithCommonParentToProcess(&state, 1, i);
-    }
+    MPI_Status status;
+    BOOL black;
+    MPI_Recv(&black, 1, MPI_BOOL, source, TAG_TOKEN, MPI_COMM_WORLD, &status);
+    LOG("Received a %s token.\n", black ? "black" : "white");
+    sendTokenTo((processNum + 1) % totalProcesses, black || !stateStack->size);
 }
 
+void handleFinishFrom(int source)
+{
+    MPI_Status status;
+    MPI_Recv(NULL, 0, MPI_INT, source, TAG_FINISH, MPI_COMM_WORLD, &status);
+    LOG("Received finish message, setting done to YES.\n");
+    done = YES;
+}

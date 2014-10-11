@@ -22,6 +22,8 @@ extern int gameBoardRows;
 extern int processNum, totalProcesses, donorProcessNum;
 extern int maxDepth;
 extern State *initialState;
+extern StateStack *stateStack;
+extern BOOL done;
 
 void initProcessNums()
 {
@@ -36,7 +38,7 @@ void loadGameBoardFromFileName(const char *fileName)
     int value;
     FILE *file = fopen(fileName, "r");
     if (file == NULL) {
-        printf("Input file with name %s not found.\n", fileName);
+        fprintf(stderr, "Input file with name %s not found.\n", fileName);
         exit(EXIT_FAILURE);
     }
     gameBoard = (int *)malloc(sizeof(int) * gameBoardFieldCountAllocated);
@@ -84,6 +86,22 @@ void pushInitialState()
             return;
         }
     }
-    printf("Missing \"0\" on game board. Please check input.\n");
+    fprintf(stderr, "Missing \"0\" on game board. Please check input.\n");
     exit(EXIT_FAILURE);
 }
+
+void initialize()
+{
+    while (stateStack->size && (totalProcesses == 1 || stateStack->size < totalProcesses)) {
+        evaluateNextStackState();
+    }
+    if (!stateStack->size) {
+        LOG("Reached empty stack while initializing, the process is complete.\n");
+        broadcastFinish();
+        done = YES;
+    } else {
+        LOG("Have enough states to hand out.\n");
+        handOutStatesToAllProcesses();
+    }
+}
+

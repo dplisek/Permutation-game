@@ -69,6 +69,13 @@ void evaluateNextStackState()
         backUpAndFindCommonParent(state, previousState);
         swapIndices(state->parent->blankIndex, state->blankIndex);
     }
+#ifdef DEBUG
+    if (gameBoard[state->blankIndex] != 0) {
+        LOG("The blankIndex %d in the state that I'm evaluating doesn't point to a blank.\n", state->blankIndex);
+        LOG_GAME();
+        exit(EXIT_FAILURE);
+    }
+#endif
     if (isFinal(state)) {
         LOG("This state is final.\n");
         saveResultIfBetter(state);

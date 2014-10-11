@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include "config.h"
 #include "communication.h"
+#include "output.h"
 
 char logFileName[256];
 extern int processNum;
@@ -31,5 +32,12 @@ void logToFile(const char *format, ...)
     vsprintf(logText, format, arguments);
     fprintf(logFile, "[%.4f]: %s", MPI_Wtime() - execTime, logText);
     va_end(arguments);
+    fclose(logFile);
+}
+
+void logGameBoardToFile()
+{
+    FILE *logFile = fopen(logFileName, "a");
+    printGameBoardToStream(logFile);
     fclose(logFile);
 }

@@ -22,7 +22,7 @@ extern int gameBoardFieldCount;
 extern int gameBoardRows;
 extern int processNum, totalProcesses, donorProcessNum;
 extern int maxDepth;
-extern State *initialState;
+extern State *initialState, *previousState;
 extern StateStack *stateStack;
 extern BOOL done;
 

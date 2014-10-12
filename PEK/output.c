@@ -64,6 +64,7 @@ void resetGameBoardFromLastState(State *state)
         state = state->parent;
         free(stateToFree);
     }
+    free(state);
 }
 
 BOOL writeResultToFile(const char *fileName, State *initialState)

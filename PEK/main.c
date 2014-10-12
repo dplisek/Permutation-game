@@ -115,7 +115,6 @@ int main(int argc, char * argv[])
 //    } else {
 //        printf("Could not find any solution with at most %d steps.\n", maxDepth);
 //    }
-    if (initialState) free(initialState);
     if (stateStack) freeStateStack();
     if (initialGameBoard) free(initialGameBoard);
     if (gameBoard) free(gameBoard);

@@ -72,6 +72,10 @@ void sendStatesWithCommonParentToProcess(State **states, int stateCount, int pro
 #endif
         LOG("Packing state #%d with blankIndex %d.\n", i, states[i]->blankIndex);
         MPI_Pack(&(states[i]->blankIndex), 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+        free(states[i]);
+#ifdef DEBUG
+        allocatedStates--;
+#endif
     }
     LOG("Sending package.\n");
     MPI_Send(transferBuffer, position, MPI_PACKED, process, TAG_WORK_RESPONSE, MPI_COMM_WORLD);

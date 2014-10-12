@@ -100,6 +100,7 @@ void initialize()
     }
     if (!stateStack->size) {
         LOG("Reached empty stack while initializing, the process is complete.\n");
+        resetGameBoardFromLastState(previousState);
         broadcastFinish();
         done = YES;
     } else {

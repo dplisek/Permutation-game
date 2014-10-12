@@ -11,6 +11,7 @@
 
 #include "statestack.h"
 #include "bool.h"
+#include "color.h"
 #ifdef STAR
 #include "mpi.h"
 #else
@@ -21,6 +22,7 @@ void sendStatesWithCommonParentToProcess(State **states, int stateCount, int pro
 void requestWork();
 void handOutInitialDataToAllProcesses();
 void broadcastFinish();
+void sendTokenTo(int dest, COLOR color);
 void handleWorkRequestFrom(int source);
 void handleWorkResponseFrom(int source);
 void handleNoWorkFrom(int source);

@@ -31,6 +31,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B40BD1F219EAA548009ED332 /* color.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = color.h; sourceTree = "<group>"; };
 		B48B6B8419E843D700459B36 /* config.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
 		B48B6B8519E8453800459B36 /* mapping.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = mapping.c; sourceTree = "<group>"; };
 		B48B6B8619E8453800459B36 /* mapping.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mapping.h; sourceTree = "<group>"; };
@@ -85,6 +86,7 @@
 			children = (
 				B4E5F6CF19D8A56E008187AA /* main.c */,
 				B48B6B9D19E85CA900459B36 /* bool.h */,
+				B40BD1F219EAA548009ED332 /* color.h */,
 				B48B6B8419E843D700459B36 /* config.h */,
 				B48B6B8519E8453800459B36 /* mapping.c */,
 				B48B6B8619E8453800459B36 /* mapping.h */,

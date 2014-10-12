@@ -14,6 +14,7 @@
 #include "action.h"
 
 #define MPI_BOOL MPI_CHAR
+#define MPI_COLOR MPI_CHAR
 
 char transferBuffer[TRANSFER_BUFFER_LEN];
 
@@ -24,6 +25,9 @@ extern int totalProcesses, donorProcessNum;
 extern BOOL done;
 extern BOOL waitingForWork;
 extern State *previousState;
+
+extern BOOL hasToken;
+extern COLOR color, tokenColor;
 
 extern int *gameBoard;
 extern int *initialGameBoard;
@@ -105,10 +109,13 @@ void handOutInitialDataToAllProcesses()
     }
 }
 
-void sendTokenTo(int dest, BOOL black)
+void sendTokenTo(int dest, COLOR tokenColor)
 {
-    LOG("Sending a %s token.\n", black ? "black" : "white");
-    MPI_Send(&black, 1, MPI_BOOL, dest, TAG_TOKEN, MPI_COMM_WORLD);
+    MPI_Send(&tokenColor, 1, MPI_BOOL, dest, TAG_TOKEN, MPI_COMM_WORLD);
+    LOG("Was %s. Sent a %s token.\n", color ? "black" : "white", tokenColor ? "black" : "white");
+    hasToken = NO;
+    color = WHITE;
+    LOG("Became white after sending token on.\n");
 }
 
 void broadcastFinish()
@@ -131,6 +138,10 @@ void handleWorkRequestFrom(int source)
         State *state = popStateOffBottom();
         LOG("Deepest state has blankIndex %d and depth %d and parent blankIndex %d. Will give it away.\n", state->blankIndex, state->depth, state->parent ? state->parent->blankIndex : -1);
         sendStatesWithCommonParentToProcess(&state, 1, source);
+        if (source < processNum) {
+            color = BLACK;
+            LOG("Now have a bad conscience, set color to black.\n");
+        }
     } else {
         LOG("Don't have work, sending nowork.\n");
         MPI_Send(NULL, 0, MPI_INT, source, TAG_WORK_NOWORK, MPI_COMM_WORLD);
@@ -210,10 +221,18 @@ void handleNoWorkFrom(int source)
 void handleTokenFrom(int source)
 {
     MPI_Status status;
-    BOOL black;
-    MPI_Recv(&black, 1, MPI_BOOL, source, TAG_TOKEN, MPI_COMM_WORLD, &status);
-    LOG("Received a %s token.\n", black ? "black" : "white");
-    sendTokenTo((processNum + 1) % totalProcesses, black || !stateStack->size);
+    MPI_Recv(&tokenColor, 1, MPI_COLOR, source, TAG_TOKEN, MPI_COMM_WORLD, &status);
+    LOG("Received a %s token.\n", tokenColor ? "black" : "white");
+    hasToken = YES;
+    if (processNum == 0) {
+        if (tokenColor == WHITE) {
+            printf("Token detected finish.\n");
+            broadcastFinish();
+            done = YES;
+        } else {
+            tokenColor = WHITE;
+        }
+    }
 }
 
 void handleFinishFrom(int source)

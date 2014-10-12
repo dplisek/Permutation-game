@@ -15,6 +15,7 @@
 #include "config.h"
 #include "action.h"
 #include "output.h"
+#include "color.h"
 
 // input
 int *initialGameBoard;
@@ -37,6 +38,9 @@ int expandCycles = 0;
 BOOL done = NO;
 BOOL waitingForWork;
 double execTime;
+COLOR color = WHITE;
+BOOL hasToken = NO;
+COLOR tokenColor = WHITE;
 
 #ifdef DEBUG
 int allocatedStates = 0;
@@ -64,6 +68,7 @@ int main(int argc, char * argv[])
         LOG("Pushed initial state, will begin handing out work.\n");
         initialize();
         waitingForWork = NO;
+        hasToken = YES;
     } else {
         waitingForWork = YES;
     }
@@ -80,6 +85,9 @@ int main(int argc, char * argv[])
 #endif
             requestWork();
             waitingForWork = YES;
+        }
+        if (!stateStack->size && hasToken) {
+            sendTokenTo((processNum + 1) % totalProcesses, tokenColor || color);
         }
         if (!stateStack->size || expandCycles == MSG_CHECK_FREQ) {
             expandCycles = 0;

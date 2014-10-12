@@ -41,6 +41,7 @@ double execTime;
 COLOR color = WHITE;
 BOOL hasToken = NO;
 COLOR tokenColor = WHITE;
+BOOL tokenPassedOnce = NO;
 
 #ifdef DEBUG
 int allocatedStates = 0;

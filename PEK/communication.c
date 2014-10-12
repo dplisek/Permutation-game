@@ -28,6 +28,7 @@ extern State *previousState;
 
 extern BOOL hasToken;
 extern COLOR color, tokenColor;
+extern BOOL tokenPassedOnce;
 
 extern int *gameBoard;
 extern int *initialGameBoard;
@@ -226,12 +227,18 @@ void handleTokenFrom(int source)
     hasToken = YES;
     if (processNum == 0) {
         if (tokenColor == WHITE) {
-            printf("Token detected finish.\n");
-            broadcastFinish();
-            done = YES;
+            if (tokenPassedOnce) {
+                printf("Token detected finish.\n");
+                broadcastFinish();
+                done = YES;
+            } else {
+                printf("Token passed once. Next time, if it passes, it will mean finish.\n");
+                tokenPassedOnce = YES;
+            }
         } else {
-            tokenColor = WHITE;
+            tokenPassedOnce = NO;
         }
+        tokenColor = WHITE;
     }
 }
 

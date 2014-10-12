@@ -18,6 +18,10 @@ extern int minDepth;
 extern int *resultSteps;
 extern int processNum;
 
+#ifdef DEBUG
+extern int allocatedStates;
+#endif
+
 void printGameBoardToStream(FILE *stream)
 {
     int row, col, index = 0;
@@ -63,8 +67,14 @@ void resetGameBoardFromLastState(State *state)
         stateToFree = state;
         state = state->parent;
         free(stateToFree);
+#ifdef DEBUG
+        allocatedStates--;
+#endif
     }
     free(state);
+#ifdef DEBUG
+    allocatedStates--;
+#endif
 }
 
 BOOL writeResultToFile(const char *fileName, State *initialState)

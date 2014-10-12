@@ -38,6 +38,10 @@ BOOL done = NO;
 BOOL waitingForWork;
 double execTime;
 
+#ifdef DEBUG
+int allocatedStates = 0;
+#endif
+
 // state stack
 StateStack* stateStack = NULL;
 State *initialState, *previousState = NULL;
@@ -71,6 +75,9 @@ int main(int argc, char * argv[])
             expandCycles++;
         } else if (!waitingForWork) {
             resetGameBoardFromLastState(previousState);
+#ifdef DEBUG
+            printf("Process %d emptied its stack, memory leak report: %d states remain in memory.\n", processNum, allocatedStates);
+#endif
             requestWork();
             waitingForWork = YES;
         }

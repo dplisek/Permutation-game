@@ -26,6 +26,10 @@ extern State *initialState, *previousState;
 extern StateStack *stateStack;
 extern BOOL done;
 
+#ifdef DEBUG
+extern int allocatedStates;
+#endif
+
 void initProcessNums()
 {
     MPI_Comm_rank(MPI_COMM_WORLD, &processNum);
@@ -82,6 +86,9 @@ void pushInitialState()
         int value = gameBoard[i];
         if (value == 0) {
             initialState = (State *)malloc(sizeof(State));
+#ifdef DEBUG
+            allocatedStates++;
+#endif
             initialState->depth = 0;
             initialState->blankIndex = i;
             initialState->parent = NULL;
@@ -101,6 +108,9 @@ void initialize()
     if (!stateStack->size) {
         LOG("Reached empty stack while initializing, the process is complete.\n");
         resetGameBoardFromLastState(previousState);
+#ifdef DEBUG
+        printf("Process %d emptied its stack, memory leak report: %d states remain in memory.\n", processNum, allocatedStates);
+#endif
         broadcastFinish();
         done = YES;
     } else {

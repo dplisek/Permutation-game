@@ -12,9 +12,16 @@
 
 extern int gameBoardRows;
 
+#ifdef DEBUG
+extern int allocatedStates;
+#endif
+
 State *prepareFollowupState(State *state)
 {
     State* prepared = (State *)malloc(sizeof(State));
+#ifdef DEBUG
+    allocatedStates++;
+#endif
     prepared->parent = state;
     prepared->depth = state->depth + 1;
     return prepared;

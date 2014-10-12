@@ -19,6 +19,10 @@ extern int minDepth;
 extern State *previousState;
 extern int gameBoardFieldCount;
 
+#ifdef DEBUG
+extern int allocatedStates;
+#endif
+
 void swapIndices(int i1, int i2)
 {
     int temp = gameBoard[i1];
@@ -39,6 +43,9 @@ void backUpAndFindCommonParent(State *state, State *previousState)
         stateToFree = previousState;
         previousState = previousState->parent;
         free(stateToFree);
+#ifdef DEBUG
+        allocatedStates--;
+#endif
     }
 }
 

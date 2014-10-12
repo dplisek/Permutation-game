@@ -31,6 +31,9 @@ extern int gameBoardFieldCount;
 extern int gameBoardRows;
 extern int maxDepth;
 
+#ifdef DEBUG
+extern int allocatedStates;
+#endif
 
 void sendInitialDataToProcess(int process)
 {
@@ -169,6 +172,9 @@ void handleWorkResponseFrom(int source)
         MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &blankIndex, 1, MPI_INT, MPI_COMM_WORLD);
         LOG("Unpacked history item #%d with blankIndex %d.\n", i, blankIndex);
         state = (State *)malloc(sizeof(State));
+#ifdef DEBUG
+        allocatedStates++;
+#endif
         state->blankIndex = blankIndex;
         state->depth = i;
         state->parent = NULL;
@@ -187,6 +193,9 @@ void handleWorkResponseFrom(int source)
         MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &blankIndex, 1, MPI_INT, MPI_COMM_WORLD);
         LOG("Unpacked work state #%d with blankIndex %d. Will push to stack.\n", i, blankIndex);
         state = (State *)malloc(sizeof(State));
+#ifdef DEBUG
+        allocatedStates++;
+#endif
         state->blankIndex = blankIndex;
         state->depth = firstState->depth + 1;
         state->parent = firstState;

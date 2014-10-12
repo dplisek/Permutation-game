@@ -123,7 +123,7 @@ void handleWorkRequestFrom(int source)
     if (stateStack->size) {
         LOG("Have work to give.\n");
         State *state = stateAtIndex(0);
-        LOG("Deepeset state has blankIndex %d and depth %d and parent blankIndex %d.\n", state->blankIndex, state->depth, state->parent ? state->parent->blankIndex : -1);
+        LOG("Deepest state has blankIndex %d and depth %d and parent blankIndex %d.\n", state->blankIndex, state->depth, state->parent ? state->parent->blankIndex : -1);
         bottomDepth = state->depth;
         while (state->depth == bottomDepth) {
             bottomStateCount++;

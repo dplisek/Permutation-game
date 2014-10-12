@@ -40,19 +40,15 @@ State *popState()
     return state;
 }
 
-State **popStatesOffBottom(int count)
+State *popStateOffBottom()
 {
     int i;
-    State **states = (State **)malloc(sizeof(State *) * count);
-    for (int i = 0; i < count; i++) {
-        State *state = stateStack->states[i];
-        states[i] = state;
+    State *bottomState = stateStack->states[0];
+    for (i = 0; i < stateStack->size - 1; i++) {
+        stateStack->states[i] = stateStack->states[i + 1];
     }
-    for (i = 0; i < stateStack->size - count; i++) {
-        stateStack->states[i] = stateStack->states[i + count];
-    }
-    stateStack->size -= count;
-    return states;
+    stateStack->size--;
+    return bottomState;
 }
 
 State *stateAtIndex(int index)

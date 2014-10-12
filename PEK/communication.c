@@ -123,28 +123,14 @@ void broadcastFinish()
 
 void handleWorkRequestFrom(int source)
 {
-    int bottomDepth, bottomStateCount = 0;
     MPI_Status status;
     LOG("Received work request from process %d.\n", source);
     MPI_Recv(NULL, 0, MPI_INT, source, TAG_WORK_REQUEST, MPI_COMM_WORLD, &status);
     if (stateStack->size) {
         LOG("Have work to give.\n");
-        State *state = stateAtIndex(0);
-        LOG("Deepest state has blankIndex %d and depth %d and parent blankIndex %d.\n", state->blankIndex, state->depth, state->parent ? state->parent->blankIndex : -1);
-        bottomDepth = state->depth;
-        while (state->depth == bottomDepth) {
-            bottomStateCount++;
-            state = stateAtIndex(bottomStateCount);
-        }
-        if (bottomStateCount == 1) {
-            LOG("There is only one state at the bottom level of the stack, sending nowork.\n");
-            MPI_Send(NULL, 0, MPI_INT, source, TAG_WORK_NOWORK, MPI_COMM_WORLD);
-        } else {
-            LOG("There are a total of %d bottom states. Will give floor(half) = %d of them.\n", bottomStateCount, bottomStateCount / 2);
-            State **states = popStatesOffBottom(bottomStateCount / 2);
-            sendStatesWithCommonParentToProcess(states, bottomStateCount / 2, source);
-            free(states);
-        }
+        State *state = popStateOffBottom();
+        LOG("Deepest state has blankIndex %d and depth %d and parent blankIndex %d. Will give it away.\n", state->blankIndex, state->depth, state->parent ? state->parent->blankIndex : -1);
+        sendStatesWithCommonParentToProcess(&state, 1, source);
     } else {
         LOG("Don't have work, sending nowork.\n");
         MPI_Send(NULL, 0, MPI_INT, source, TAG_WORK_NOWORK, MPI_COMM_WORLD);

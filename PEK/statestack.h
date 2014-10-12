@@ -26,7 +26,7 @@ typedef struct {
 void initStateStack();
 void pushState(State *state);
 State *popState();
-State **popStatesOffBottom(int count);
+State *popStateOffBottom();
 State *stateAtIndex(int index);
 void freeStateStack();
 

@@ -65,7 +65,7 @@ void sendStatesWithCommonParentToProcess(State **states, int stateCount, int pro
     LOG("Packing states.\n");
     for (i = 0; i < stateCount; i++) {
 #ifdef DEBUG
-        if (states[i]->depth != historyLength) {
+        if (states[i]->parent != states[0]->parent) {
             fprintf(stderr, "Trying to send states not with a common parent.\n");
             exit(EXIT_FAILURE);
         }

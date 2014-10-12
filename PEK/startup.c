@@ -22,7 +22,7 @@ extern int gameBoardFieldCount;
 extern int gameBoardRows;
 extern int processNum, totalProcesses, donorProcessNum;
 extern int maxDepth;
-extern State *initialState, *previousState;
+extern State *previousState;
 extern StateStack *stateStack;
 extern BOOL done;
 
@@ -85,7 +85,7 @@ void pushInitialState()
     for (i = 0; i < gameBoardFieldCount; i++) {
         int value = gameBoard[i];
         if (value == 0) {
-            initialState = (State *)malloc(sizeof(State));
+            State *initialState = (State *)malloc(sizeof(State));
 #ifdef DEBUG
             allocatedStates++;
 #endif

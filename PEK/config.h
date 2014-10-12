@@ -21,5 +21,6 @@
 #define TAG_TOKEN 103
 #define TAG_FINISH 104
 #define TAG_INITIAL_DATA 105
+#define TAG_SOLUTION 106
 
 #endif

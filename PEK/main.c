@@ -49,7 +49,7 @@ int allocatedStates = 0;
 
 // state stack
 StateStack* stateStack = NULL;
-State *initialState, *previousState = NULL;
+State *previousState = NULL;
 
 int main(int argc, char * argv[])
 {
@@ -120,17 +120,18 @@ int main(int argc, char * argv[])
         }
     }
     
-//    resetGameBoardFromLastState(previousState);
-//    if (resultSteps) {
-//        if (!writeResultToFile(argv[3], initialState)) {
-//            printf("Couldn't write to file %s.\n", argv[3]);
-//            return EXIT_FAILURE;
-//        }
-//        printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
-//        free(resultSteps);
-//    } else {
-//        printf("Could not find any solution with at most %d steps.\n", maxDepth);
-//    }
+    collectResults();
+    
+    if (processNum == 0) {
+        if (resultSteps) {
+            writeResultToFile(argv[3]);
+            printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
+            free(resultSteps);
+        } else {
+            printf("Could not find any solution with at most %d steps.\n", maxDepth);
+        }
+    }
+    
     if (stateStack) freeStateStack();
     if (initialGameBoard) free(initialGameBoard);
     if (gameBoard) free(gameBoard);

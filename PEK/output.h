@@ -17,5 +17,6 @@ void printGameBoardToStream(FILE *stream);
 BOOL isFinal(State *state);
 void saveResultIfBetter(State *state);
 void resetGameBoardFromLastState(State *state);
+void writeResultToFile(const char *fileName);
 
 #endif /* defined(__PEK__output__) */

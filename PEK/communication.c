@@ -36,6 +36,9 @@ extern int gameBoardFieldCount;
 extern int gameBoardRows;
 extern int maxDepth;
 
+extern int minDepth;
+extern int *resultSteps;
+
 #ifdef DEBUG
 extern int allocatedStates;
 #endif
@@ -263,4 +266,38 @@ void handleInitialDataFrom(int source)
     MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &gameBoardRows, 1, MPI_INT, MPI_COMM_WORLD);
     MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &maxDepth, 1, MPI_INT, MPI_COMM_WORLD);
     LOG("Received initial data, game board rows: %d, max depth: %d.\n", gameBoardRows, maxDepth);
+}
+
+void collectResults()
+{
+    int i, checkedBest, position;
+    MPI_Status status;
+    if (processNum == 0) {
+        for (i = 1; i < totalProcesses; i++) {
+            MPI_Recv(transferBuffer, TRANSFER_BUFFER_LEN, MPI_PACKED, i, TAG_SOLUTION, MPI_COMM_WORLD, &status);
+            position = 0;
+            MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, &checkedBest, 1, MPI_INT, MPI_COMM_WORLD);
+            LOG("Received solution of %d from process %d.\n", checkedBest, i);
+            if (checkedBest < minDepth) {
+                minDepth = checkedBest;
+                if (resultSteps) {
+                    resultSteps = realloc(resultSteps, sizeof(int) * minDepth);
+                } else {
+                    resultSteps = malloc(sizeof(int) * minDepth);
+                }
+                MPI_Unpack(transferBuffer, TRANSFER_BUFFER_LEN, &position, resultSteps, minDepth, MPI_INT, MPI_COMM_WORLD);
+                LOG("This solution is better, saved it.\n");
+            }
+        }
+    } else {
+        position = 0;
+        LOG("Sending info that my solution has %d steps to process 0.\n", minDepth);
+        MPI_Pack(&minDepth, 1, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+        if (resultSteps) {
+            LOG("My solution exists, so will actually send it.\n");
+            MPI_Pack(resultSteps, minDepth, MPI_INT, transferBuffer, TRANSFER_BUFFER_LEN, &position, MPI_COMM_WORLD);
+        }
+        MPI_Send(transferBuffer, position, MPI_PACKED, 0, TAG_SOLUTION, MPI_COMM_WORLD);
+    }
+    
 }

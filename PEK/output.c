@@ -50,8 +50,11 @@ void saveResultIfBetter(State *state)
         minDepth = state->depth;
         LOG("Found a (better) solution, steps: %d\n", minDepth);
         printf("Process %d found a (better) solution, steps: %d\n", processNum, minDepth);
-        if (resultSteps) free(resultSteps);
-        resultSteps = (int *)malloc(sizeof(int) * minDepth);
+        if (resultSteps) {
+            resultSteps = realloc(resultSteps, sizeof(int) * minDepth);
+        } else {
+            resultSteps = malloc(sizeof(int) * minDepth);
+        }
         for (i = minDepth - 1; i >= 0; i--) {
             resultSteps[i] = state->blankIndex;
             state = state->parent;
@@ -77,21 +80,30 @@ void resetGameBoardFromLastState(State *state)
 #endif
 }
 
-BOOL writeResultToFile(const char *fileName, State *initialState)
+int findInitialBlankIndex()
 {
     int i;
+    for (i = 0; i < gameBoardFieldCount; i++) {
+        if (gameBoard[i] == 0) return i;
+    }
+    fprintf(stderr, "Couldn't find 0 on game board.\n");
+    exit(EXIT_FAILURE);
+}
+
+void writeResultToFile(const char *fileName)
+{
+    int i, initialBlankIndex = findInitialBlankIndex();
     FILE *file = fopen(fileName, "w");
     if (file == NULL) {
         fprintf(stderr, "Output file with name %s not found.\n", fileName);
-        return NO;
+        exit(EXIT_FAILURE);
     }
     fprintf(file, "Start:\n");
     printGameBoardToStream(file);
     for (i = -1; i < minDepth - 1; i++) {
-        swapIndices(i >= 0 ? resultSteps[i] : initialState->blankIndex, resultSteps[i + 1]);
+        swapIndices(i >= 0 ? resultSteps[i] : initialBlankIndex, resultSteps[i + 1]);
         fprintf(file, "Step %d:\n", i + 2);
         printGameBoardToStream(file);
     }
     fclose(file);
-    return YES;
 }

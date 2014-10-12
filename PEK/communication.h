@@ -29,5 +29,6 @@ void handleNoWorkFrom(int source);
 void handleTokenFrom(int source);
 void handleFinishFrom(int source);
 void handleInitialDataFrom(int source);
+void collectResults();
 
 #endif /* defined(__PEK__communication__) */

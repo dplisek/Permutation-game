@@ -193,8 +193,6 @@ void handleWorkResponseFrom(int source)
         pushState(state);
     }
     LOG("Finished receiving work, saved %d states to the stack.\n", stateCount);
-    copyGameBoard(initialGameBoard, gameBoard);
-    LOG("Reset game board.\n");
     forwardToState(firstState);
     previousState = firstState;
     LOG("Forwarded to parent state of received work states.\n");

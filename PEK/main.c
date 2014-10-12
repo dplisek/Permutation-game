@@ -14,6 +14,7 @@
 #include "startup.h"
 #include "config.h"
 #include "action.h"
+#include "output.h"
 
 // input
 int *initialGameBoard;
@@ -69,6 +70,7 @@ int main(int argc, char * argv[])
             evaluateNextStackState();
             expandCycles++;
         } else if (!waitingForWork) {
+            resetGameBoardFromLastState(previousState);
             requestWork();
             waitingForWork = YES;
         }

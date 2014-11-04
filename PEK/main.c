@@ -125,10 +125,10 @@ int main(int argc, char * argv[])
     if (processNum == 0) {
         if (resultSteps) {
             writeResultToFile(argv[3]);
-            printf("Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", minDepth, argv[3]);
+            printf("[%.4f] Analysis complete. The shortest solution has %d steps and has been saved to %s.\n", MPI_Wtime() - execTime, minDepth, argv[3]);
             free(resultSteps);
         } else {
-            printf("Could not find any solution with at most %d steps.\n", maxDepth);
+            printf("[%.4f] Could not find any solution with at most %d steps.\n", MPI_Wtime() - execTime, maxDepth);
         }
     }
     

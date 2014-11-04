@@ -39,6 +39,8 @@ extern int maxDepth;
 extern int minDepth;
 extern int *resultSteps;
 
+extern double execTime;
+
 #ifdef DEBUG
 extern int allocatedStates;
 #endif
@@ -231,11 +233,11 @@ void handleTokenFrom(int source)
     if (processNum == 0) {
         if (tokenColor == WHITE) {
             if (tokenPassedOnce) {
-                printf("Token detected finish.\n");
+                printf("[%.4f] Token detected finish.\n", MPI_Wtime() - execTime);
                 broadcastFinish();
                 done = YES;
             } else {
-                printf("Token passed once. Next time, if it passes, it will mean finish.\n");
+                printf("[%.4f] Token passed once. Next time, if it passes, it will mean finish.\n", MPI_Wtime() - execTime);
                 tokenPassedOnce = YES;
             }
         } else {

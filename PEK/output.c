@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include "action.h"
 #include "logging.h"
+#include "communication.h"
 
 extern int *gameBoard;
 extern int gameBoardFieldCount;
@@ -17,6 +18,7 @@ extern int gameBoardRows;
 extern int minDepth;
 extern int *resultSteps;
 extern int processNum;
+extern double execTime;
 
 #ifdef DEBUG
 extern int allocatedStates;
@@ -49,7 +51,7 @@ void saveResultIfBetter(State *state)
     if (state->depth < minDepth) {
         minDepth = state->depth;
         LOG("Found a (better) solution, steps: %d\n", minDepth);
-        printf("Process %d found a (better) solution, steps: %d\n", processNum, minDepth);
+        printf("[%.4f] Process %d found a (better) solution, steps: %d\n", MPI_Wtime() - execTime, processNum, minDepth);
         if (resultSteps) {
             resultSteps = realloc(resultSteps, sizeof(int) * minDepth);
         } else {
